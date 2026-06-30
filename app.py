@@ -1001,7 +1001,38 @@ def show_sidebar_chat():
         return
         
     st.sidebar.markdown("---")
-    st.sidebar.markdown("💬 **Trò Chuyện Gia Đình**")
+    
+    col_t, col_ref = st.sidebar.columns([4, 1.2])
+    with col_t:
+        st.markdown("💬 **Trò Chuyện Gia Đình**")
+    with col_ref:
+        if st.button("🔄", key="chat_manual_refresh", help="Cập nhật tin nhắn", use_container_width=True):
+            st.rerun()
+            
+    # Tự động click nút làm mới mỗi 10 giây dưới nền để đồng bộ tin nhắn tự động
+    st.components.v1.html(
+        """
+        <script>
+            (function() {
+                if (window.parent.__chatTimerInitialized) return;
+                window.parent.__chatTimerInitialized = true;
+                
+                setInterval(function() {
+                    const parentDoc = window.parent.document;
+                    const buttons = parentDoc.querySelectorAll('button');
+                    for (let btn of buttons) {
+                        if (btn.title === "Cập nhật tin nhắn" || (btn.innerText && btn.innerText.includes("🔄"))) {
+                            btn.click();
+                            break;
+                        }
+                    }
+                }, 10000);
+            })();
+        </script>
+        """,
+        height=0,
+        width=0
+    )
     
     # Lấy 15 tin nhắn gần nhất
     messages = get_messages(15)
