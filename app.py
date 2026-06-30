@@ -133,6 +133,14 @@ def init_postgres_tables(conn):
                 submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Messages (
+                id SERIAL PRIMARY KEY,
+                sender VARCHAR(100) NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
             
             # Gieo dữ liệu tài khoản mặc định
             cursor.execute("""
@@ -198,6 +206,14 @@ def init_sqlite_tables(conn):
             submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (student_username) REFERENCES Users(username),
             FOREIGN KEY (lesson_id) REFERENCES Lessons(id)
+        );
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
         cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('phuhuynh', '123456', 'parent');")
@@ -486,6 +502,33 @@ def save_grade(student_username, lesson_id, answers_json, score, ai_feedback_jso
         st.error(f"Lỗi lưu kết quả bài làm: {e}")
     return False
 
+def save_message(sender, message):
+    try:
+        with get_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO Messages (sender, message)
+                VALUES (?, ?)
+                """,
+                (sender, message)
+            )
+            conn.commit()
+            return True
+    except Exception as e:
+        st.error(f"Lỗi gửi tin nhắn: {e}")
+    return False
+
+def get_messages(limit=25):
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                f"SELECT sender, message, created_at FROM Messages ORDER BY id DESC LIMIT {limit}"
+            ).fetchall()
+            return list(reversed([dict(r) for r in rows]))
+    except Exception as e:
+        st.error(f"Lỗi tải tin nhắn: {e}")
+    return []
+
 
 # --- TRÍCH XUẤT VĂN BẢN TỪ FILE PDF ---
 
@@ -770,6 +813,100 @@ def inject_custom_css():
             font-style: italic;
         }
         
+        /* CSS bong bóng và cửa sổ Chat nổi lơ lửng */
+        div[data-testid="stVerticalBlock"]:has(> div.element-container > div.floating-chat-collapsed) {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            z-index: 99999 !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #0284c7 0%, #3b82f6 100%) !important;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(> div.element-container > div.floating-chat-collapsed) button {
+            background: transparent !important;
+            color: white !important;
+            font-size: 26px !important;
+            border: none !important;
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(> div.element-container > div.floating-chat-expanded) {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            z-index: 99999 !important;
+            width: 360px !important;
+            height: 520px !important;
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 16px !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            padding: 15px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        .chat-history-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-right: 5px;
+            height: 380px;
+            border: 1px solid #f1f5f9;
+            border-radius: 8px;
+            padding: 8px;
+            background-color: #fafafa;
+        }
+
+        .chat-bubble {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            max-width: 85%;
+            line-height: 1.4;
+            display: inline-block;
+        }
+
+        .chat-bubble-self {
+            background: linear-gradient(135deg, #0284c7 0%, #3b82f6 100%);
+            color: #ffffff;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+
+        .chat-bubble-other {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            align-self: flex-start;
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+        }
+
+        .chat-meta {
+            font-size: 0.65rem;
+            margin-top: 4px;
+            opacity: 0.85;
+        }
+        
         </style>
         """,
         unsafe_allow_html=True
@@ -857,6 +994,83 @@ def inject_selection_speak_js():
         height=0,
         width=0
     )
+
+def show_floating_chat():
+    if not st.session_state.get('logged_in', False):
+        return
+
+    current_user = st.session_state['username']
+    
+    # Khởi tạo trạng thái thu nhỏ/mở rộng chat
+    if 'chat_expanded' not in st.session_state:
+        st.session_state['chat_expanded'] = False
+        
+    if not st.session_state['chat_expanded']:
+        # Bong bóng chat thu nhỏ (hình tròn)
+        with st.container():
+            st.markdown('<div class="floating-chat-collapsed"></div>', unsafe_allow_html=True)
+            if st.button("💬", key="btn_chat_collapsed", help="Chat Gia Đình"):
+                st.session_state['chat_expanded'] = True
+                st.rerun()
+    else:
+        # Cửa sổ chat mở rộng
+        with st.container():
+            st.markdown('<div class="floating-chat-expanded"></div>', unsafe_allow_html=True)
+            
+            # Tiêu đề & Nút đóng
+            col_title, col_close = st.columns([5, 1])
+            with col_title:
+                st.markdown("💬 **Chat Gia Đình**")
+            with col_close:
+                if st.button("❌", key="btn_chat_close", help="Thu nhỏ"):
+                    st.session_state['chat_expanded'] = False
+                    st.rerun()
+            
+            # Lấy 25 tin nhắn gần nhất
+            messages = get_messages(25)
+            
+            # Giao diện hiển thị lịch sử tin nhắn dạng chat bong bóng
+            chat_html = '<div class="chat-history-container">'
+            if not messages:
+                chat_html += '<div style="color:#94a3b8; font-size:0.8rem; text-align:center; margin-top:150px;">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</div>'
+            else:
+                for msg in messages:
+                    sender_label = "Bạn" if msg['sender'] == current_user else ("Phụ huynh" if msg['sender'] == 'phuhuynh' else "Con")
+                    bubble_class = "chat-bubble-self" if msg['sender'] == current_user else "chat-bubble-other"
+                    
+                    # Đọc thời gian
+                    try:
+                        # created_at có dạng YYYY-MM-DD HH:MM:SS hoặc ISO
+                        # Cố gắng bóc tách giờ phút
+                        if isinstance(msg['created_at'], str):
+                            time_part = msg['created_at'].split()
+                            time_str = time_part[1][:5] if len(time_part) > 1 else msg['created_at'][:5]
+                        else:
+                            time_str = msg['created_at'].strftime("%H:%M")
+                    except Exception:
+                        time_str = ""
+                        
+                    chat_html += f"""
+                    <div class="chat-bubble {bubble_class}">
+                        <div style="font-size:0.65rem; font-weight:700; opacity:0.85; margin-bottom:2px;">{sender_label}</div>
+                        <div>{msg['message']}</div>
+                        <div class="chat-meta">{time_str}</div>
+                    </div>
+                    """
+            chat_html += '</div>'
+            st.markdown(chat_html, unsafe_allow_html=True)
+            
+            # Nhập tin nhắn mới
+            with st.form("send_msg_form", clear_on_submit=True):
+                col_inp, col_send = st.columns([4, 1])
+                with col_inp:
+                    new_msg = st.text_input("Nhập tin nhắn...", label_visibility="collapsed", placeholder="Nhắn tin...")
+                with col_send:
+                    btn_send = st.form_submit_button("Gửi", use_container_width=True)
+                    
+                if btn_send and new_msg.strip():
+                    save_message(current_user, new_msg.strip())
+                    st.rerun()
 
 def get_gemini_client():
     api_key = os.environ.get("GEMINI_API_KEY", "")
@@ -1924,6 +2138,8 @@ def main():
         show_parent_interface(client)
     else:
         show_student_interface(client)
+
+    show_floating_chat()
 
 
 if __name__ == '__main__':

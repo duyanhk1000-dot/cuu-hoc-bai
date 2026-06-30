@@ -89,6 +89,16 @@ def init_database():
     );
     """)
 
+    # 5. Bảng Messages
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS Messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     # Gieo dữ liệu tài khoản cố định (idempotent)
     users_data = [
         ('phuhuynh', '123456', 'parent'),
