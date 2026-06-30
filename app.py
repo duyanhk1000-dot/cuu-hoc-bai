@@ -52,11 +52,278 @@ class GradePayload(BaseModel):
 
 # --- CÁC HÀM TRUY VẤN CƠ SỞ DỮ LIỆU ---
 
+# --- CÁU HÌNH VÀ HÀM KẾT NỐI DATABASE CHUNG (SQLite & Supabase Postgres) ---
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    HAS_POSTGRES = True
+except ImportError:
+    HAS_POSTGRES = False
+
+def init_postgres_tables(conn):
+    try:
+        with conn.cursor() as cursor:
+            # Kiểm tra nếu bảng Syllabus kiểu cũ tồn tại (không có cột content)
+            cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.columns 
+                WHERE table_name = 'syllabus' AND column_name = 'mon_hoc'
+            );
+            """)
+            has_old_schema = cursor.fetchone()[0]
+            
+            if has_old_schema:
+                # Đang có bảng kiểu cũ -> Drop sạch để tạo mới chuẩn
+                cursor.execute("DROP TABLE IF EXISTS Grades CASCADE;")
+                cursor.execute("DROP TABLE IF EXISTS Lessons CASCADE;")
+                cursor.execute("DROP TABLE IF EXISTS Syllabus CASCADE;")
+                cursor.execute("DROP TABLE IF EXISTS Users CASCADE;")
+                conn.commit()
+                
+            # Tạo bảng mới chuẩn đồng bộ với app.py
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Users (
+                username VARCHAR(100) PRIMARY KEY,
+                password VARCHAR(100) NOT NULL,
+                role VARCHAR(50) NOT NULL CHECK (role IN ('parent', 'student'))
+            );
+            """)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Syllabus (
+                id SERIAL PRIMARY KEY,
+                subject VARCHAR(200) UNIQUE NOT NULL,
+                content TEXT NOT NULL,
+                textbook_content TEXT,
+                pdf_file_path TEXT,
+                total_lessons INTEGER DEFAULT 30,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Lessons (
+                id SERIAL PRIMARY KEY,
+                subject VARCHAR(200) NOT NULL,
+                lesson_number INTEGER NOT NULL,
+                title VARCHAR(200) NOT NULL,
+                lecture_content TEXT NOT NULL,
+                questions TEXT NOT NULL,
+                duration INTEGER NOT NULL,
+                UNIQUE(subject, lesson_number)
+            );
+            """)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Grades (
+                id SERIAL PRIMARY KEY,
+                student_username VARCHAR(100) NOT NULL,
+                lesson_id INTEGER NOT NULL REFERENCES Lessons(id) ON DELETE CASCADE,
+                answers TEXT NOT NULL,
+                score REAL NOT NULL,
+                ai_feedback TEXT NOT NULL,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+            
+            # Gieo dữ liệu tài khoản mặc định
+            cursor.execute("""
+            INSERT INTO Users (username, password, role)
+            VALUES ('phuhuynh', '123456', 'parent')
+            ON CONFLICT (username) DO NOTHING;
+            """)
+            cursor.execute("""
+            INSERT INTO Users (username, password, role)
+            VALUES ('hocsinh', '123456', 'student')
+            ON CONFLICT (username) DO NOTHING;
+            """)
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi khởi tạo Supabase PostgreSQL: {e}")
+
+def init_sqlite_tables(conn):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Users (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('parent', 'student'))
+        );
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Syllabus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT UNIQUE NOT NULL,
+            content TEXT NOT NULL,
+            textbook_content TEXT,
+            pdf_file_path TEXT,
+            total_lessons INTEGER DEFAULT 30,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Lessons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT NOT NULL,
+            lesson_number INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            lecture_content TEXT NOT NULL,
+            questions TEXT NOT NULL,
+            duration INTEGER NOT NULL,
+            UNIQUE(subject, lesson_number)
+        );
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_username TEXT NOT NULL,
+            lesson_id INTEGER NOT NULL,
+            answers TEXT NOT NULL,
+            score REAL NOT NULL,
+            ai_feedback TEXT NOT NULL,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_username) REFERENCES Users(username),
+            FOREIGN KEY (lesson_id) REFERENCES Lessons(id)
+        );
+        """)
+        cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('phuhuynh', '123456', 'parent');")
+        cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('hocsinh', '123456', 'student');")
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi khởi tạo SQLite: {e}")
+
+class PostgresWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        self.cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+    def execute(self, query, params=None):
+        if params is None:
+            params = ()
+        query = query.replace("?", "%s")
+        if "INSERT OR REPLACE INTO Syllabus" in query:
+            query = """
+            INSERT INTO Syllabus (subject, content, textbook_content, pdf_file_path, total_lessons)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (subject) DO UPDATE SET
+                content = EXCLUDED.content,
+                textbook_content = EXCLUDED.textbook_content,
+                pdf_file_path = EXCLUDED.pdf_file_path,
+                total_lessons = EXCLUDED.total_lessons
+            """
+        elif "INSERT OR REPLACE INTO Lessons" in query:
+            query = """
+            INSERT INTO Lessons (subject, lesson_number, title, lecture_content, questions, duration)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (subject, lesson_number) DO UPDATE SET
+                title = EXCLUDED.title,
+                lecture_content = EXCLUDED.lecture_content,
+                questions = EXCLUDED.questions,
+                duration = EXCLUDED.duration
+            """
+        elif "INSERT OR REPLACE INTO Users" in query:
+            query = """
+            INSERT INTO Users (username, password, role)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (username) DO UPDATE SET
+                password = EXCLUDED.password,
+                role = EXCLUDED.role
+            """
+        self.cursor.execute(query, params)
+        return self
+        
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+        
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        return [dict(r) for r in rows]
+        
+    def commit(self):
+        self.conn.commit()
+        
+    def rollback(self):
+        self.conn.rollback()
+        
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+
+class SQLiteWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        self.cursor = conn.cursor()
+        
+    def execute(self, query, params=None):
+        if params is None:
+            params = ()
+        self.cursor.execute(query, params)
+        return self
+        
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+        
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        return [dict(r) for r in rows]
+        
+    def commit(self):
+        self.conn.commit()
+        
+    def rollback(self):
+        self.conn.rollback()
+        
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+
 def get_db():
+    db_url = None
+    if st.secrets and "DATABASE_URL" in st.secrets:
+        db_url = st.secrets["DATABASE_URL"]
+    elif "DATABASE_URL" in os.environ:
+        db_url = os.environ["DATABASE_URL"]
+        
+    if db_url and HAS_POSTGRES:
+        try:
+            conn = psycopg2.connect(db_url)
+            init_postgres_tables(conn)
+            return PostgresWrapper(conn)
+        except Exception as e:
+            st.sidebar.error(f"Lỗi kết nối Supabase: {e}. Đang dùng SQLite làm dự phòng...")
+            
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
+    init_sqlite_tables(conn)
+    return SQLiteWrapper(conn)
 
 def verify_user(username, password):
     try:
