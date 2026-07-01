@@ -1146,31 +1146,40 @@ def show_sidebar_chat():
             st.rerun()
 
 def get_gemini_client():
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if not api_key:
-        api_key = st.session_state.get("gemini_api_key", "")
+    # Khởi tạo giá trị mặc định từ biến môi trường nếu session state chưa có
+    if "gemini_api_key" not in st.session_state:
+        st.session_state["gemini_api_key"] = os.environ.get("GEMINI_API_KEY", "")
         
-    if not api_key:
-        st.sidebar.warning("⚠️ Không tìm thấy API Key của Gemini!")
-        entered_key = st.sidebar.text_input("Nhập Gemini API Key của bạn (nếu có nhiều key dự phòng, hãy nhập cách nhau bằng dấu phẩy):", type="password")
-        if entered_key:
+    # Luôn hiển thị hộp cấu hình API Key trong Sidebar dưới dạng Expander để người dùng dễ dàng chỉnh sửa/thêm key dự phòng
+    with st.sidebar.expander("🔑 Cấu hình Gemini API Key", expanded=False):
+        entered_key = st.text_input(
+            "Nhập API Key (nhiều key cách nhau bằng dấu phẩy):", 
+            value=st.session_state["gemini_api_key"], 
+            type="password",
+            help="Ví dụ: Key1, Key2, Key3..."
+        )
+        if entered_key != st.session_state["gemini_api_key"]:
             st.session_state["gemini_api_key"] = entered_key
-            api_key = entered_key
             st.rerun()
             
-    if api_key:
-        try:
-            # Hỗ trợ danh sách API key cách nhau bởi dấu phẩy
-            keys = [k.strip() for k in api_key.split(",") if k.strip()]
-            if keys:
-                st.session_state['gemini_api_keys_pool'] = keys
-                if 'active_key_idx' not in st.session_state:
-                    st.session_state['active_key_idx'] = 0
-                idx = st.session_state['active_key_idx'] % len(keys)
-                active_key = keys[idx]
-                return genai.Client(api_key=active_key)
-        except Exception as e:
-            st.sidebar.error(f"Lỗi khởi tạo Gemini Client: {e}")
+    api_key = st.session_state["gemini_api_key"]
+    
+    if not api_key:
+        st.sidebar.warning("⚠️ Chưa cấu hình Gemini API Key! Vui lòng mở rộng hộp '🔑 Cấu hình Gemini API Key' ở trên để nhập key.")
+        return None
+        
+    try:
+        # Hỗ trợ danh sách API key cách nhau bởi dấu phẩy
+        keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        if keys:
+            st.session_state['gemini_api_keys_pool'] = keys
+            if 'active_key_idx' not in st.session_state:
+                st.session_state['active_key_idx'] = 0
+            idx = st.session_state['active_key_idx'] % len(keys)
+            active_key = keys[idx]
+            return genai.Client(api_key=active_key)
+    except Exception as e:
+        st.sidebar.error(f"Lỗi khởi tạo Gemini Client: {e}")
     return None
 
 def generate_content_with_retry(client, model, contents, config=None, max_retries=5, initial_delay=3):
