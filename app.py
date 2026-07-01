@@ -1152,7 +1152,7 @@ def get_gemini_client():
         
     if not api_key:
         st.sidebar.warning("⚠️ Không tìm thấy API Key của Gemini!")
-        entered_key = st.sidebar.text_input("Nhập Gemini API Key của bạn:", type="password")
+        entered_key = st.sidebar.text_input("Nhập Gemini API Key của bạn (nếu có nhiều key dự phòng, hãy nhập cách nhau bằng dấu phẩy):", type="password")
         if entered_key:
             st.session_state["gemini_api_key"] = entered_key
             api_key = entered_key
@@ -1160,7 +1160,15 @@ def get_gemini_client():
             
     if api_key:
         try:
-            return genai.Client(api_key=api_key)
+            # Hỗ trợ danh sách API key cách nhau bởi dấu phẩy
+            keys = [k.strip() for k in api_key.split(",") if k.strip()]
+            if keys:
+                st.session_state['gemini_api_keys_pool'] = keys
+                if 'active_key_idx' not in st.session_state:
+                    st.session_state['active_key_idx'] = 0
+                idx = st.session_state['active_key_idx'] % len(keys)
+                active_key = keys[idx]
+                return genai.Client(api_key=active_key)
         except Exception as e:
             st.sidebar.error(f"Lỗi khởi tạo Gemini Client: {e}")
     return None
@@ -1185,6 +1193,17 @@ def generate_content_with_retry(client, model, contents, config=None, max_retrie
         except Exception as e:
             last_error = e
             err_msg = str(e).upper()
+            
+            # Nếu hết hạn mức (429 / LIMIT / EXHAUSTED) và có nhiều API key dự phòng, tự động đổi key
+            if any(x in err_msg for x in ["429", "LIMIT", "EXHAUSTED"]) and 'gemini_api_keys_pool' in st.session_state and len(st.session_state['gemini_api_keys_pool']) > 1:
+                st.session_state['active_key_idx'] = (st.session_state.get('active_key_idx', 0) + 1) % len(st.session_state['gemini_api_keys_pool'])
+                new_key = st.session_state['gemini_api_keys_pool'][st.session_state['active_key_idx']]
+                st.toast("🔄 Khóa hiện tại hết hạn mức. Đang chuyển sang API Key dự phòng...", icon="🔄")
+                # Khởi tạo lại client mới với key dự phòng
+                client = genai.Client(api_key=new_key)
+                time.sleep(1)
+                continue
+                
             if any(x in err_msg for x in ["503", "429", "UNAVAILABLE", "HIGH DEMAND", "BUSY", "LIMIT", "TEMPORARY"]):
                 st.toast(f"⏳ Máy chủ Gemini bận (Lần thử {attempt + 1}/{max_retries}). Thử lại sau {delay}s...", icon="⚠️")
                 time.sleep(delay)
