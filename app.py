@@ -1588,7 +1588,7 @@ def show_parent_interface(client):
                     with st.spinner(f"AI đang soạn giáo án & bộ 15 câu hỏi kiểm tra cho Buổi {lesson_number}..."):
                         try:
                             prompt = f"""
-                            Bạn là một chuyên gia giáo dục và biên soạn tài liệu học tập. Dựa trên Lịch học tập tổng thể và Nội dung sách giáo khoa được cung cấp, hãy soạn thảo bài giảng chi tiết cùng bộ đề kiểm tra cuối buổi cho Buổi học số {lesson_number}.
+                            Bạn là một chuyên gia giáo dục và biên soạn tài liệu học tập xuất sắc. Dựa trên Lịch học tập tổng thể và Nội dung sách giáo khoa được cung cấp, hãy soạn thảo bài giảng chi tiết cùng bộ đề kiểm tra cuối buổi cho Buổi học số {lesson_number}.
                             
                             Môn học: {selected_sub_lesson}
                             
@@ -1597,28 +1597,34 @@ def show_parent_interface(client):
 
                             Hãy tham khảo sách giáo khoa PDF đi kèm để viết bài soạn chi tiết.
 
-                            Hãy biên soạn theo các tiêu chí nghiêm ngặt sau:
+                            Hãy biên soạn theo các tiêu chí sư phạm nghiêm ngặt sau để tăng chất lượng bài giảng tốt nhất cho học sinh:
 
                             A. Yêu cầu chi tiết về BÀI GIẢNG (lecture_content):
-                            Phải viết đầy đủ nội dung bài giảng chi tiết, dễ hiểu cho học sinh lớp 6, trình bày Markdown đẹp mắt và chia cấu trúc đúng 3 phần chính sau:
+                            Phải viết đầy đủ nội dung bài giảng chi tiết, hấp dẫn và dễ hiểu cho học sinh lớp 6, trình bày Markdown đẹp mắt và chia cấu trúc đúng 3 phần chính sau:
+                            
                             1. Mục tiêu bài học (Learning Objectives):
-                               - Kiến thức: Người học hiểu và nhớ được những gì?
-                               - Kỹ năng: Người học thực hiện được thao tác hoặc giải quyết vấn đề gì?
-                               - Thái độ: Sự thay đổi trong tư duy, nhận thức của người học sau bài học.
+                               - Kiến thức: Học sinh hiểu và nhớ được những khái niệm cốt lõi nào?
+                               - Kỹ năng: Học sinh thực hành giải quyết được bài toán/vấn đề gì?
+                               - Thái độ: Giúp con hứng thú, thay đổi nhận thức tích cực về chủ đề này.
+                               
                             2. Bài giảng E-learning (Lesson Plan):
-                               - Lý thuyết trọng tâm: Trình bày lý thuyết ngắn gọn, cô đọng, dễ hiểu, ưu tiên sử dụng từ khóa cốt lõi (sử dụng công thức LaTeX $...$ hoặc $$...$$ nếu có).
-                               - Minh họa thực tế (Ví dụ): Đưa ra case-study, ví dụ minh họa trực quan hoặc các tình huống áp dụng cụ thể trong thực tế.
-                               - Tương tác/Thực hành: Đan xen các câu hỏi, bài tập nhỏ cụ thể để học sinh tự suy nghĩ và trả lời ngay lập tức, kèm theo đáp án (Trả lời) và giải thích chi tiết.
+                               - Tông giọng giảng dạy: Thân thiện, khích lệ, đóng vai trò một người bạn đồng hành thông thái hỗ trợ học sinh học tập (Sử dụng các từ ngữ gần gũi như: "Chào con nhé...", "Con hãy thử nghĩ xem...", "Đúng rồi!", "Tuyệt vời lắm!").
+                               - Lý thuyết trọng tâm: Trình bày lý thuyết ngắn gọn, dễ hiểu, sử dụng phương pháp giải thích Feynman (dùng các phép ẩn dụ sinh động, trực quan hoặc so sánh thay vì khái niệm hàn lâm khó hiểu). Sử dụng công thức LaTeX $...$ hoặc $$...$$ nếu có toán/lý/hóa.
+                               - Minh họa trực quan bằng hình vẽ SVG/Mermaid: 
+                                 * BẮT BUỘC chèn hình vẽ trực quan bằng mã **SVG** (định dạng ảnh vector tự vẽ bằng mã HTML) hoặc sơ đồ **Mermaid.js** để minh họa cho các khái niệm toán học, sơ đồ phân số, hình học, quy trình khoa học hoặc mối liên kết bài học (ví dụ: vẽ phân số 1/2 bằng vòng tròn SVG tô màu một nửa, hoặc sơ đồ phân nhánh Mermaid). Không được sử dụng link ảnh từ internet.
+                                 * Nếu có hình vẽ phức tạp trong sách giáo khoa gốc, hãy chỉ dẫn rõ cho học sinh: "[Mở sách giáo khoa trang X, quan sát Hình Y để đối chiếu]".
+                               - Tương tác/Thực hành: Đan xen 2 câu hỏi/bài tập nhỏ tương tác nhanh (Micro-quizzes) ngay giữa các mục lý thuyết để học sinh tự suy nghĩ trả lời, kèm theo đáp án (Trả lời) và giải thích để khắc sâu kiến thức lập tức.
+                               
                             3. Tổng kết & Vận dụng:
-                               - Tóm tắt (Summary): Nhấn mạnh từ 3 đến 5 điểm chính cốt lõi nhất của bài học.
-                               - Kiểm tra cô đọng: Kiểm tra mức độ hiểu bài của học sinh bằng các câu hỏi nhanh cực kỳ ngắn gọn.
-                               - Giao nhiệm vụ (Call to Action): Hướng dẫn học sinh cách tự ứng dụng kiến thức vào thực tế cuộc sống hoặc chuẩn bị nội dung cho bài tiếp theo.
-
+                               - Tóm tắt (Summary): Nhấn mạnh 3-5 điểm cốt lõi nhất dưới dạng Bullet point ngắn hoặc sơ đồ tư duy dạng chữ (text-based mindmap).
+                               - Kiểm tra cô đọng: 1-2 câu hỏi trắc nghiệm nhanh cuối bài giảng.
+                               - Nhiệm vụ thực tế (Call to Action): Giao "Thử thách thám hiểm" thực tế liên quan đến bài học để học sinh tự tìm tòi, ứng dụng kiến thức vào cuộc sống xung quanh con.
 
                             B. Yêu cầu chi tiết về ĐỀ KIỂM TRA (questions):
                             Thiết kế bộ đề kiểm tra cuối buổi gồm ĐÚNG 15 câu hỏi bám sát nội dung sách giáo khoa:
                             - 10 câu đầu: Trắc nghiệm (multiple_choice, có 4 đáp án A, B, C, D)
                             - 5 câu tiếp theo: Tự luận ngắn (essay)
+                            - Các câu hỏi nếu cần hình vẽ, hãy vẽ bằng SVG/Mermaid hoặc hướng dẫn học sinh xem hình tương ứng ở trang nào trong SGK.
                             Hãy điền đầy đủ đáp án chuẩn hoặc hướng dẫn chấm vào từng câu.
 
                             C. Đề xuất thời gian làm bài (duration_minutes) hợp lý từ 30 đến 60 phút.
