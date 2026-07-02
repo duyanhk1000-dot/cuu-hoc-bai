@@ -1856,6 +1856,12 @@ def show_parent_interface(client):
                                 for opt in q['options']:
                                     st.write(f"  {opt}")
                             st.info(f"💡 **Đáp án/Hướng dẫn:** {q['correct_answer']}")
+                    
+                    # Chẩn đoán nhà phát triển trong Tab 2
+                    with st.expander("🛠️ Chẩn đoán cơ sở dữ liệu (Nhà phát triển)", expanded=False):
+                        st.write(f"- ID bài giảng: {current_lesson.get('id')}")
+                        st.write(f"- Số flashcards tìm thấy: {len(json.loads(current_lesson.get('flashcards')) if current_lesson.get('flashcards') else [])}")
+                        st.write(f"- Dữ liệu flashcards gốc: `{current_lesson.get('flashcards')}`")
                 else:
                     st.info(f"Chưa có nội dung soạn thảo cho Buổi {lesson_number}. Hãy bấm nút bên trái để tạo.")
 
@@ -2445,6 +2451,12 @@ def show_student_interface(client):
                     
                     if st.button("🚀 Bắt đầu làm bài", use_container_width=True):
                         start_new_exam(lesson)
+            
+            # Chẩn đoán nhà phát triển trong Student Workspace
+            with st.expander("🛠️ Chẩn đoán cơ sở dữ liệu (Nhà phát triển)", expanded=False):
+                st.write(f"- ID bài giảng: {lesson.get('id')}")
+                st.write(f"- Số flashcards tìm thấy: {len(json.loads(lesson.get('flashcards')) if lesson.get('flashcards') else [])}")
+                st.write(f"- Dữ liệu flashcards gốc: `{lesson.get('flashcards')}`")
 
 
 # --- PHÒNG THI BẤM GIỜ ---
