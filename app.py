@@ -22,6 +22,20 @@ st.set_page_config(
 
 DB_FILE = 'he_thong_hoc_tap.db'
 
+def safe_json_loads(json_str, default=None):
+    if not json_str:
+        return default if default is not None else []
+    try:
+        return json.loads(json_str)
+    except Exception:
+        try:
+            import re
+            # Sửa lỗi các ký tự backslash của LaTeX (như \in, \notin, \{, \}) làm hỏng cú pháp JSON
+            clean_str = re.sub(r'\\(?!\")', r'\\\\', json_str)
+            return json.loads(clean_str)
+        except Exception:
+            return default if default is not None else []
+
 # --- ĐỊNH NGHĨA CẤU TRÚC DỮ LIỆU PYDANTIC CHO AI ---
 
 class Question(BaseModel):
@@ -1837,7 +1851,7 @@ def show_parent_interface(client):
                     
                     with st.expander("🗂️ Xem 15 thẻ Flashcard ghi nhớ", expanded=False):
                         if current_lesson.get('flashcards'):
-                            fc_list = json.loads(current_lesson['flashcards'])
+                            fc_list = safe_json_loads(current_lesson.get('flashcards'))
                             st.write(f"Tổng số thẻ: {len(fc_list)} thẻ")
                             for idx, fc in enumerate(fc_list):
                                 st.markdown(f"**Thẻ {idx+1}:**")
@@ -1848,7 +1862,7 @@ def show_parent_interface(client):
                             st.warning("Bài học này chưa được cấu hình Flashcard.")
                             
                     with st.expander("✍️ Xem đề kiểm tra (15 câu)", expanded=False):
-                        questions = json.loads(current_lesson['questions'])
+                        questions = safe_json_loads(current_lesson.get('questions'))
                         st.info(f"Tổng số câu hỏi: {len(questions)} câu (10 trắc nghiệm, 5 tự luận)")
                         for q in questions:
                             st.markdown(f"**Câu {q['question_number']} ({'Trắc nghiệm' if q['question_type'] == 'multiple_choice' else 'Tự luận'}):** {q['prompt']}")
@@ -1860,7 +1874,7 @@ def show_parent_interface(client):
                     # Chẩn đoán nhà phát triển trong Tab 2
                     with st.expander("🛠️ Chẩn đoán cơ sở dữ liệu (Nhà phát triển)", expanded=False):
                         st.write(f"- ID bài giảng: {current_lesson.get('id')}")
-                        st.write(f"- Số flashcards tìm thấy: {len(json.loads(current_lesson.get('flashcards')) if current_lesson.get('flashcards') else [])}")
+                        st.write(f"- Số flashcards tìm thấy: {len(safe_json_loads(current_lesson.get('flashcards')))}")
                         st.write(f"- Dữ liệu flashcards gốc: `{current_lesson.get('flashcards')}`")
                 else:
                     st.info(f"Chưa có nội dung soạn thảo cho Buổi {lesson_number}. Hãy bấm nút bên trái để tạo.")
@@ -2172,11 +2186,7 @@ def show_student_interface(client):
                     st.info("Bài học này chưa được cấu hình Flashcard. Ba mẹ hãy dùng tính năng AI Soạn bài giảng mới để tự động cập nhật Flashcards.")
                     st.warning(f"🛠️ **Chẩn đoán (Developer):** Cột flashcards trong DB có giá trị là: `{flashcards_data}` (hoặc NULL/rỗng).")
                 else:
-                    try:
-                        fc_list = json.loads(flashcards_data)
-                    except Exception as parse_err:
-                        fc_list = []
-                        st.error(f"🛠️ **Chẩn đoán (Developer):** Lỗi parse JSON: {parse_err}. Dữ liệu thô: `{flashcards_data}`")
+                    fc_list = safe_json_loads(flashcards_data)
                         
                     if len(fc_list) == 0:
                         st.info("Không có Flashcard nào được tìm thấy cho bài học này.")
@@ -2458,7 +2468,7 @@ def show_student_interface(client):
             # Chẩn đoán nhà phát triển trong Student Workspace
             with st.expander("🛠️ Chẩn đoán cơ sở dữ liệu (Nhà phát triển)", expanded=False):
                 st.write(f"- ID bài giảng: {lesson.get('id')}")
-                st.write(f"- Số flashcards tìm thấy: {len(json.loads(lesson.get('flashcards')) if lesson.get('flashcards') else [])}")
+                st.write(f"- Số flashcards tìm thấy: {len(safe_json_loads(lesson.get('flashcards')))}")
                 st.write(f"- Dữ liệu flashcards gốc: `{lesson.get('flashcards')}`")
 
 
