@@ -2170,14 +2170,17 @@ def show_student_interface(client):
                 flashcards_data = lesson.get('flashcards')
                 if not flashcards_data:
                     st.info("Bài học này chưa được cấu hình Flashcard. Ba mẹ hãy dùng tính năng AI Soạn bài giảng mới để tự động cập nhật Flashcards.")
+                    st.warning(f"🛠️ **Chẩn đoán (Developer):** Cột flashcards trong DB có giá trị là: `{flashcards_data}` (hoặc NULL/rỗng).")
                 else:
                     try:
                         fc_list = json.loads(flashcards_data)
-                    except Exception:
+                    except Exception as parse_err:
                         fc_list = []
+                        st.error(f"🛠️ **Chẩn đoán (Developer):** Lỗi parse JSON: {parse_err}. Dữ liệu thô: `{flashcards_data}`")
                         
                     if len(fc_list) == 0:
                         st.info("Không có Flashcard nào được tìm thấy cho bài học này.")
+                        st.warning(f"🛠️ **Chẩn đoán (Developer):** flashcards_data trong DB = `{flashcards_data}` (parse được {len(fc_list)} thẻ).")
                     else:
                         import json
                         fc_json = json.dumps(fc_list, ensure_ascii=False)
