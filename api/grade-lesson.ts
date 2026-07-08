@@ -1,0 +1,64 @@
+import { GoogleGenAI } from '@google/genai';
+
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { questions, studentAnswers, apiKey: clientApiKey } = req.body || {};
+  if (!questions || !studentAnswers) {
+    return res.status(400).json({ error: 'Questions and studentAnswers are required' });
+  }
+
+  const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server. Please enter your Gemini Key in the web header or configure it in a .env file.' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    
+    let prompt = `Bạn là một giáo viên AI chấm điểm nghiêm khắc và chi tiết. Hãy chấm điểm bài làm của học sinh dựa trên danh sách câu hỏi và câu trả lời được cung cấp.\n\n`;
+    prompt += `ĐỀ BÀI (Questions):\n---\n${JSON.stringify(questions, null, 2)}\n---\n\n`;
+    prompt += `BÀI LÀM CỦA HỌC SINH (Student Answers):\n---\n${JSON.stringify(studentAnswers, null, 2)}\n---\n\n`;
+    prompt += `Yêu cầu chấm điểm:\n`;
+    prompt += `1. Tính tổng điểm trên thang điểm 10 (total_score). Trắc nghiệm đúng được 0.67 điểm (10 câu = 6.7 điểm), tự luận đúng được tối đa 0.66 điểm (5 câu = 3.3 điểm).\n`;
+    prompt += `2. Nhận xét tổng quan về bài làm (overall_feedback), chỉ ra điểm mạnh, điểm yếu và cách cải thiện.\n`;
+    prompt += `3. Phân tích chấm điểm chi tiết từng câu trong 15 câu (detailed_feedback): ghi lại câu trả lời học sinh, xác định đúng/sai (is_correct), số điểm đạt được (score_awarded), và giải thích chi tiết đáp án đúng kèm phân tích lỗi sai nếu có (correct_explanation).\n`;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            total_score: { type: 'number' },
+            overall_feedback: { type: 'string' },
+            detailed_feedback: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  question_number: { type: 'integer' },
+                  student_answer: { type: 'string' },
+                  is_correct: { type: 'boolean' },
+                  score_awarded: { type: 'number' },
+                  correct_explanation: { type: 'string' }
+                },
+                required: ['question_number', 'student_answer', 'is_correct', 'score_awarded', 'correct_explanation']
+              }
+            }
+          },
+          required: ['total_score', 'overall_feedback', 'detailed_feedback']
+        }
+      }
+    });
+
+    const result = JSON.parse(response.text || '{}');
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+  }
+}

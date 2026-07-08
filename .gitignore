@@ -28,3 +28,8 @@ data/textbooks/
 # System files
 .DS_Store
 Thumbs.db
+
+.vercel
+node_modules/
+dist/
+
