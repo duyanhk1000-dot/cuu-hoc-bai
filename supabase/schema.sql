@@ -61,3 +61,20 @@ VALUES
     ('phuhuynh', '123456', 'parent'),
     ('hocsinh', '123456', 'student')
 ON CONFLICT (username) DO NOTHING;
+
+-- 6. Khởi tạo Storage Bucket cho tệp PDF và chính sách bảo mật (Storage policies)
+-- Tạo bucket 'textbooks' nếu chưa tồn tại
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('textbooks', 'textbooks', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Thiết lập Policy cho phép upload (INSERT) file không cần đăng nhập (dành cho client anon key)
+CREATE POLICY "Cho phép upload sách công khai" ON storage.objects
+FOR INSERT TO public
+WITH CHECK (bucket_id = 'textbooks');
+
+-- Thiết lập Policy cho phép đọc (SELECT) file công khai
+CREATE POLICY "Cho phép xem sách công khai" ON storage.objects
+FOR SELECT TO public
+USING (bucket_id = 'textbooks');
+

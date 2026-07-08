@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2 } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
+import { supabase, isSupabaseConfigured } from '../supabaseClient'
 
 interface ParentDashboardProps {
   user: User;
@@ -197,47 +198,100 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       alert('Chỉ chấp nhận tệp định dạng PDF!')
       return
     }
-    if (file.size > 4 * 1024 * 1024) {
-      alert('⚠️ Tệp PDF quá lớn! Để tránh lỗi máy chủ Vercel, vui lòng chỉ chọn tệp dưới 4MB. Nếu tài liệu quá dài, bạn hãy cắt nhỏ ra hoặc copy/paste văn bản vào ô dưới.')
-      return
+    if (isSupabaseConfigured) {
+      if (file.size > 50 * 1024 * 1024) {
+        alert('⚠️ Tệp PDF quá lớn! Dung lượng file tải lên Supabase Storage tối đa là 50MB.')
+        return
+      }
+    } else {
+      if (file.size > 4 * 1024 * 1024) {
+        alert('⚠️ Đang ở chế độ Offline. Vui lòng chỉ chọn tệp dưới 4MB để tải trực tiếp lên Vercel.')
+        return
+      }
     }
+
     setExtractingPdf(true)
     setPdfFileName(file.name)
 
-    const reader = new FileReader()
-    reader.onload = async () => {
+    if (isSupabaseConfigured) {
       try {
-        const base64Result = reader.result as string
-        const base64Data = base64Result.split(',')[1]
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
         
+        // Tải file trực tiếp lên Supabase Storage (bucket 'textbooks')
+        const { data, error: uploadError } = await supabase.storage
+          .from('textbooks')
+          .upload(fileName, file)
+          
+        if (uploadError) {
+          throw new Error(uploadError.message)
+        }
+        
+        // Lấy Public URL của file đã tải lên
+        const { data: { publicUrl } } = supabase.storage
+          .from('textbooks')
+          .getPublicUrl(fileName)
+          
+        // Gửi URL này lên Serverless Function
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            fileData: base64Data,
+            fileUrl: publicUrl,
             apiKey: geminiApiKey
           })
         })
-        const data = await response.json()
-        if (response.ok && data.text) {
-          setTextbookContent(data.text)
+        
+        const resData = await response.json()
+        if (response.ok && resData.text) {
+          setTextbookContent(resData.text)
         } else {
-          alert(data.error || 'Lỗi khi trích xuất PDF!')
+          alert(resData.error || 'Lỗi khi trích xuất PDF từ URL Supabase!')
           setPdfFileName('')
         }
-      } catch {
-        alert('Lỗi kết nối API trích xuất PDF!')
+      } catch (err: any) {
+        alert(`Lỗi tải lên hoặc xử lý tệp PDF: ${err.message || err}`)
         setPdfFileName('')
       } finally {
         setExtractingPdf(false)
       }
+    } else {
+      // Chế độ Offline Fallback: chuyển đổi sang base64 ở client và gửi qua body
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const base64Result = reader.result as string
+          const base64Data = base64Result.split(',')[1]
+          
+          const response = await fetch('/api/extract-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              fileData: base64Data,
+              apiKey: geminiApiKey
+            })
+          })
+          const resData = await response.json()
+          if (response.ok && resData.text) {
+            setTextbookContent(resData.text)
+          } else {
+            alert(resData.error || 'Lỗi khi trích xuất PDF (Chế độ offline)!')
+            setPdfFileName('')
+          }
+        } catch {
+          alert('Lỗi kết nối API trích xuất PDF!')
+          setPdfFileName('')
+        } finally {
+          setExtractingPdf(false)
+        }
+      }
+      reader.onerror = () => {
+        alert('Lỗi đọc tệp tin PDF cục bộ!')
+        setExtractingPdf(false)
+        setPdfFileName('')
+      }
+      reader.readAsDataURL(file)
     }
-    reader.onerror = () => {
-      alert('Lỗi đọc tệp tin PDF cục bộ!')
-      setExtractingPdf(false)
-      setPdfFileName('')
-    }
-    reader.readAsDataURL(file)
   }
 
   const handleGenerateSyllabus = async (e: React.FormEvent) => {

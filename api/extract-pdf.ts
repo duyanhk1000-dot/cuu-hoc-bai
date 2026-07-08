@@ -5,9 +5,9 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { fileData, apiKey: clientApiKey } = req.body || {};
-  if (!fileData) {
-    return res.status(400).json({ error: 'Empty file data' });
+  const { fileUrl, fileData, apiKey: clientApiKey } = req.body || {};
+  if (!fileUrl && !fileData) {
+    return res.status(400).json({ error: 'Empty file URL or file data' });
   }
 
   const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
@@ -16,6 +16,22 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    let base64Data = fileData;
+    
+    // Nếu truyền lên dạng URL, tải file về và chuyển đổi sang base64 ngay trên serverless
+    if (fileUrl) {
+      const fileResponse = await fetch(fileUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Không thể tải tệp tin từ URL Supabase: ${fileResponse.statusText}`);
+      }
+      const arrayBuffer = await fileResponse.arrayBuffer();
+      base64Data = Buffer.from(arrayBuffer).toString('base64');
+    }
+
+    if (!base64Data) {
+      return res.status(400).json({ error: 'Không tìm thấy dữ liệu tệp PDF để xử lý' });
+    }
+
     const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
@@ -24,7 +40,7 @@ export default async function handler(req: any, res: any) {
         {
           inlineData: {
             mimeType: 'application/pdf',
-            data: fileData
+            data: base64Data
           }
         },
         {
