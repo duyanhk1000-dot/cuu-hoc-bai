@@ -1,7 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2 } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
+
+const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
+  const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
+  if (isParent) {
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-slate-100 shadow-md border border-indigo-400/30 overflow-hidden flex-shrink-0`}>
+        <svg className="w-[60%] h-[60%]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
+    );
+  } else {
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-slate-100 shadow-md border border-emerald-400/30 overflow-hidden flex-shrink-0`}>
+        <svg className="w-[60%] h-[60%]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+          <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
+        </svg>
+      </div>
+    );
+  }
+};
 
 interface ParentDashboardProps {
   user: User;
@@ -12,6 +35,20 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades'>('syllabus')
   
+  // Theme state
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  })
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light')
+    } else {
+      document.documentElement.classList.remove('light')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
   // App state
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedSubject, setSelectedSubject] = useState<string>('')
@@ -40,6 +77,14 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [parentFeedback, setParentFeedback] = useState('')
   const [publishingLesson, setPublishingLesson] = useState(false)
+
+  // Draft Syllabus State
+  const [draftSyllabus, setDraftSyllabus] = useState<{
+    subject: string;
+    content: string;
+    totalLessons: number;
+    textbookContent: string;
+  } | null>(null)
 
   // Sync feedback when reviewing lesson changes
   useEffect(() => {
@@ -312,12 +357,13 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       })
       const data = await response.json()
       if (response.ok && data.content) {
-        await dataService.saveSyllabus(newSubject.trim(), data.content, totalLessons, textbookContent.trim())
-        setNewSubject('')
-        setTextbookContent('')
-        setPdfFileName('')
-        await loadSubjects()
-        setSelectedSubject(newSubject.trim())
+        // Lưu tạm lộ trình học để phụ huynh kiểm duyệt
+        setDraftSyllabus({
+          subject: newSubject.trim(),
+          content: data.content,
+          totalLessons: totalLessons,
+          textbookContent: textbookContent.trim()
+        });
       } else {
         alert(data.error || 'Lỗi khi tạo lộ trình học!')
       }
@@ -325,6 +371,44 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       alert('Lỗi kết nối Serverless Function!')
     } finally {
       setGeneratingSyllabus(false)
+    }
+  }
+
+  const handleApproveSyllabus = async () => {
+    if (!draftSyllabus) return
+    const ok = await dataService.saveSyllabus(
+      draftSyllabus.subject,
+      draftSyllabus.content,
+      draftSyllabus.totalLessons,
+      draftSyllabus.textbookContent
+    )
+    if (ok) {
+      alert('Đã duyệt và lưu lộ trình học thành công!');
+      const sub = draftSyllabus.subject
+      setDraftSyllabus(null)
+      setNewSubject('')
+      setTextbookContent('')
+      setPdfFileName('')
+      await loadSubjects()
+      setSelectedSubject(sub)
+    } else {
+      alert('Không thể lưu lộ trình học!');
+    }
+  }
+
+  const handleDeleteGrade = async (gradeId: number) => {
+    if (!confirm('⚠️ Bạn có chắc chắn muốn xóa kết quả bài thi này?\nHành động này không thể hoàn tác!')) {
+      return;
+    }
+    const ok = await dataService.deleteGrade(gradeId);
+    if (ok) {
+      alert('Đã xóa bài thi thành công!');
+      loadGrades();
+      if (selectedGrade && selectedGrade.id === gradeId) {
+        setSelectedGrade(null);
+      }
+    } else {
+      alert('Không thể xóa kết quả bài thi!');
     }
   }
 
@@ -468,8 +552,18 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             />
           </div>
 
-          <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800">
-            Xin chào, <strong className="text-indigo-300">{user.username}</strong>
+          {/* Nút thay đổi theme */}
+          <button
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-xl hover:bg-slate-900/50 transition-all active:scale-90"
+            title="Thay đổi giao diện Sáng/Tối"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
+            {renderAvatar(user.username, "w-6 h-6")}
+            <span>Xin chào, <strong className="text-indigo-300">{user.username}</strong></span>
           </span>
           <button
             onClick={onLogout}
@@ -869,12 +963,20 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                           <td className="py-4 px-6 text-slate-400 text-xs">
                             {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
                           </td>
-                          <td className="py-4 px-6 text-right">
+                          <td className="py-4 px-6 text-right flex items-center justify-end gap-2">
                             <button
                               onClick={() => setSelectedGrade(g)}
                               className="text-xs bg-indigo-600/15 hover:bg-indigo-600/30 text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all"
                             >
                               Xem nhận xét
+                            </button>
+                            <button
+                              onClick={() => handleDeleteGrade(g.id!)}
+                              className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-lg border border-rose-500/20 transition-all flex items-center gap-1"
+                              title="Xóa bài thi của học sinh"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Xóa
                             </button>
                           </td>
                         </tr>
@@ -901,12 +1003,22 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                   {selectedGrade.subject} - Buổi {selectedGrade.lesson_number}: {selectedGrade.lesson_title}
                 </h3>
               </div>
-              <button
-                onClick={() => setSelectedGrade(null)}
-                className="text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700/60 p-2 rounded-xl text-sm font-semibold transition-all"
-              >
-                Đóng
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDeleteGrade(selectedGrade.id!)}
+                  className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 px-3 py-2 rounded-xl border border-rose-500/20 transition-all flex items-center gap-1.5 font-bold"
+                  title="Xóa kết quả bài thi này"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Xóa bài thi
+                </button>
+                <button
+                  onClick={() => setSelectedGrade(null)}
+                  className="text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700/60 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6 flex-1 scrollbar-thin">
