@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 17px;
+  }
   body {
     background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #020617 100%);
     background-attachment: fixed;
@@ -61,3 +64,148 @@
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Giao diện Sáng (Light Mode Overrides) */
+.light {
+  background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #f1f5f9 50%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+}
+
+.light body {
+  background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #f1f5f9 50%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+}
+
+/* Light mode panels & cards override */
+.light .glass-panel {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.05) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Light mode background overrides */
+.light .bg-slate-950,
+.light .bg-slate-900,
+.light .bg-slate-950\/40,
+.light .bg-slate-950\/60,
+.light .bg-slate-900\/50,
+.light .bg-slate-900\/40,
+.light .bg-slate-900\/30,
+.light .bg-slate-900\/35,
+.light .bg-slate-950\/20,
+.light .bg-slate-950\/30,
+.light .bg-slate-950\/10 {
+  background-color: #f8fafc !important; /* slate-50 */
+}
+
+.light .bg-slate-800,
+.light .bg-slate-850,
+.light .bg-slate-950\/50,
+.light .bg-slate-950\/85 {
+  background-color: #f1f5f9 !important; /* slate-100 */
+}
+
+.light .bg-slate-950\/60 {
+  background-color: rgba(248, 250, 252, 0.6) !important;
+}
+
+/* Light mode text colors */
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300,
+.light .text-white,
+.light .text-slate-50,
+.light .text-amber-50,
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light h5,
+.light h6 {
+  color: #0f172a !important; /* slate-900 */
+}
+
+.light .text-slate-400,
+.light .text-slate-500 {
+  color: #475569 !important; /* slate-600 */
+}
+
+.light .text-slate-650 {
+  color: #94a3b8 !important; /* slate-400 */
+}
+
+/* Light mode borders */
+.light .border-slate-800,
+.light .border-slate-700,
+.light .border-slate-800\/80,
+.light .border-slate-700\/50,
+.light .border-slate-700\/60,
+.light .border-slate-800\/60 {
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+/* Input fields & Textareas */
+.light input,
+.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Sidebar overrides */
+.light aside {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light .bg-slate-900\/30 {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Chat container overrides */
+.light .bg-slate-950\/10 {
+  background-color: rgba(241, 245, 249, 0.3) !important;
+}
+
+.light .bg-slate-950\/60 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.light .bg-slate-800.text-slate-200 {
+  background-color: #cbd5e1 !important; /* slate-300 */
+  color: #0f172a !important;
+}
+
+/* Scrollbars in light mode */
+.light ::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+}
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.4);
+}
+
+/* Flashcard styles */
+.light .perspective-1000 .bg-slate-900 {
+  background-color: #ffffff !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #cbd5e1 !important;
+}
+

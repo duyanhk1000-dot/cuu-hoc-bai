@@ -1131,7 +1131,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                 <div className="flex items-center gap-2">
                   <button
                     onClick={async () => {
-                      if (!confirm('Bạn có chắc chắn muốn AI soạn thảo lại bài học này dựa trên góp ý của bạn?')) return;
+                      if (!confirm('Bạn có chắc chắn muốn hệ thống soạn thảo lại bài học này dựa trên góp ý của bạn?')) return;
                       await handleGenerateLesson(reviewingLesson!.lesson_number, parentFeedback);
                     }}
                     disabled={generatingLesson || publishingLesson}
@@ -1140,12 +1140,12 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                     {generatingLesson ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        AI đang sửa bài...
+                        Hệ thống đang sửa bài...
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-3.5 h-3.5" />
-                        Yêu cầu AI soạn lại (Theo góp ý)
+                        Yêu cầu soạn lại (Theo góp ý)
                       </>
                     )}
                   </button>

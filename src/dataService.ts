@@ -337,5 +337,17 @@ export const dataService = {
       setLocal('local_lessons', lessonsList.filter(l => !(l.subject === subject && l.lesson_number === lessonNumber)));
       return true;
     }
+  },
+
+  // Delete specific grade submission
+  async deleteGrade(gradeId: number): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('grades').delete().eq('id', gradeId);
+      return !error;
+    } else {
+      const grades = getLocal('local_grades', []) as Grade[];
+      setLocal('local_grades', grades.filter(g => g.id !== gradeId));
+      return true;
+    }
   }
 };

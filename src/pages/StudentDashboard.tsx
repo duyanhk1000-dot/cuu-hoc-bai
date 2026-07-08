@@ -1,6 +1,29 @@
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
+
+const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
+  const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
+  if (isParent) {
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-slate-100 shadow-md border border-indigo-400/30 overflow-hidden flex-shrink-0`}>
+        <svg className="w-[60%] h-[60%]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
+    );
+  } else {
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-slate-100 shadow-md border border-emerald-400/30 overflow-hidden flex-shrink-0`}>
+        <svg className="w-[60%] h-[60%]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+          <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
+        </svg>
+      </div>
+    );
+  }
+};
 
 interface StudentDashboardProps {
   user: User;
@@ -8,6 +31,20 @@ interface StudentDashboardProps {
 }
 
 export default function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
+  // Theme state
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  })
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light')
+    } else {
+      document.documentElement.classList.remove('light')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
   // Navigation tabs (dashboard level)
   const [activeTab, setActiveTab] = useState<'lessons' | 'grades'>('lessons')
 
@@ -84,6 +121,22 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
     }, 300);
     return () => clearTimeout(timer);
   }, [activeLesson, workspaceTab])
+
+  // Trigger KaTeX math rendering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ((window as any).renderMathInElement) {
+        (window as any).renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ],
+          throwOnError: false
+        })
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [activeTab, selectedSubject, activeLesson, workspaceTab, currentFlashcardIdx, isFlipped, testResult])
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -194,7 +247,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
     setSubmittingTest(true)
 
     if (autoSubmit) {
-      alert('⏱️ Hết giờ làm bài! Hệ thống đang tự động nộp bài và chuyển cho AI chấm điểm...')
+      alert('⏱️ Hết giờ làm bài! Hệ thống đang tự động nộp bài và tiến hành chấm điểm...')
     }
 
     try {
@@ -220,10 +273,10 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
         await loadGrades()
         setWorkspaceTab('result')
       } else {
-        alert(data.error || 'Lỗi từ máy chủ AI chấm bài!')
+        alert(data.error || 'Lỗi từ hệ thống chấm bài!')
       }
     } catch {
-      alert('Lỗi kết nối máy chủ AI!')
+      alert('Lỗi kết nối hệ thống chấm bài!')
     } finally {
       setSubmittingTest(false)
     }
@@ -310,8 +363,18 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800">
-            Học sinh: <strong className="text-indigo-300">{user.username}</strong>
+          {/* Nút thay đổi theme */}
+          <button
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-xl hover:bg-slate-900/50 transition-all active:scale-90"
+            title="Thay đổi giao diện Sáng/Tối"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
+            {renderAvatar(user.username, "w-6 h-6")}
+            <span>Học sinh: <strong className="text-indigo-300">{user.username}</strong></span>
           </span>
           <button
             onClick={onLogout}
@@ -548,8 +611,8 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                     <div className="p-12 text-center rounded-2xl glass-panel glow-indigo flex flex-col items-center justify-center gap-4">
                       <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
                       <div>
-                        <h4 className="font-bold text-white">Bài nộp đang được nộp lên AI</h4>
-                        <p className="text-slate-400 text-xs mt-1">Giáo viên AI đang xem xét chi tiết bài giải của bạn. Vui lòng đợi trong giây lát...</p>
+                        <h4 className="font-bold text-white">Bài đang được hệ thống chấm điểm</h4>
+                        <p className="text-slate-400 text-xs mt-1">Giáo viên đang xem xét chi tiết bài giải của bạn. Vui lòng đợi trong giây lát...</p>
                       </div>
                     </div>
                   ) : (
@@ -603,7 +666,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                       <div className="pt-4 flex justify-end">
                         <button
                           onClick={() => {
-                            if (confirm('Bạn có chắc chắn muốn nộp bài thi ngay lập tức để AI chấm điểm?')) {
+                            if (confirm('Bạn có chắc chắn muốn nộp bài thi ngay lập tức để hệ thống chấm điểm?')) {
                               handleSubmitTest(false)
                             }
                           }}
@@ -626,7 +689,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                       <span className="text-xs bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 px-3 py-1 rounded-full font-bold uppercase tracking-wide">
                         Bài nộp thành công
                       </span>
-                      <h3 className="text-lg font-bold text-white">Kết quả thi được chấm bởi AI</h3>
+                      <h3 className="text-lg font-bold text-white">Kết quả thi được chấm bởi Hệ thống</h3>
                       <p className="text-xs text-slate-400">Thời điểm nộp bài: Vừa xong</p>
                     </div>
 
@@ -638,7 +701,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
 
                   {/* Overall Feedback */}
                   <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nhận xét tổng quát của giáo viên AI</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nhận xét tổng quát của Giáo viên</span>
                     <p className="text-sm text-slate-200 leading-relaxed font-medium">
                       {testResult.overall_feedback}
                     </p>
@@ -672,7 +735,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                             👉 **Bài làm của bạn:** <span className="text-slate-100 font-medium">{q.student_answer || "(Chưa trả lời)"}</span>
                           </p>
                           <div className="p-3 bg-slate-950/60 rounded-lg text-slate-300 leading-relaxed">
-                            <strong>Lời giải & Nhận xét của AI:</strong> {q.correct_explanation}
+                            <strong>Lời giải & Nhận xét của Giáo viên:</strong> {q.correct_explanation}
                           </div>
                         </div>
                       </div>
@@ -794,7 +857,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-bold text-white text-base">Lịch sử kết quả bài thi</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Nơi lưu trữ tất cả các bài tập bạn đã hoàn thành kèm theo nhận xét của AI</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Nơi lưu trữ tất cả các bài tập bạn đã hoàn thành kèm theo nhận xét</p>
                   </div>
 
                   {grades.length === 0 ? (
@@ -827,7 +890,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                             </div>
                             
                             <div className="mt-3 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-lg leading-relaxed line-clamp-3">
-                              <strong>AI Nhận xét:</strong> {(() => {
+                              <strong>Giáo viên nhận xét:</strong> {(() => {
                                 try {
                                   return JSON.parse(g.ai_feedback).overall_feedback;
                                 } catch {
@@ -888,14 +951,17 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
           {/* Messages box */}
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin">
             {messages.map((m) => (
-              <div key={m.id} className={`flex flex-col max-w-[85%] ${m.sender === user.username ? 'self-end items-end' : 'self-start items-start'}`}>
-                <span className="text-[10px] text-slate-500 mb-0.5">{m.sender}</span>
-                <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                  m.sender === user.username
-                    ? 'bg-indigo-600 text-slate-100 rounded-tr-none'
-                    : 'bg-slate-800 text-slate-200 rounded-tl-none'
-                }`}>
-                  {m.message}
+              <div key={m.id} className={`flex items-start gap-2 max-w-[85%] ${m.sender === user.username ? 'self-end flex-row-reverse' : 'self-start'}`}>
+                {renderAvatar(m.sender, "w-7 h-7")}
+                <div className={`flex flex-col ${m.sender === user.username ? 'items-end' : 'items-start'}`}>
+                  <span className="text-[10px] text-slate-500 mb-0.5">{m.sender}</span>
+                  <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                    m.sender === user.username
+                      ? 'bg-indigo-600 text-slate-100 rounded-tr-none'
+                      : 'bg-slate-800 text-slate-200 rounded-tl-none'
+                  }`}>
+                    {m.message}
+                  </div>
                 </div>
               </div>
             ))}
