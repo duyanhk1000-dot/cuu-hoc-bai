@@ -106,10 +106,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
 
   // Scroll chat to bottom
   useEffect(() => {
-    if (chatContainerRef.current) {
+    if (isChatOpen && chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, isChatOpen])
 
   // Local storage for API Key
   const handleSaveApiKey = (key: string) => {

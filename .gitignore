@@ -32,4 +32,6 @@ Thumbs.db
 .vercel
 node_modules/
 dist/
+migrate.py
+
 

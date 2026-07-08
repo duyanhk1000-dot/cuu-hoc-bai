@@ -105,14 +105,6 @@ export default function Login({ onLogin }: LoginProps) {
             )}
           </button>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-          <div className="text-xs text-slate-500 leading-relaxed">
-            Tài khoản dùng thử:<br />
-            Phụ huynh: <code className="text-indigo-400">phuhuynh</code> / <code className="text-indigo-400">123456</code><br />
-            Học sinh: <code className="text-indigo-400">hocsinh</code> / <code className="text-indigo-400">123456</code>
-          </div>
-        </div>
       </div>
     </div>
   )
