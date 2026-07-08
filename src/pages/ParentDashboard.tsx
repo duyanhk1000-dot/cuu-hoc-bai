@@ -197,7 +197,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       alert('Chỉ chấp nhận tệp định dạng PDF!')
       return
     }
-
+    if (file.size > 4 * 1024 * 1024) {
+      alert('⚠️ Tệp PDF quá lớn! Để tránh lỗi máy chủ Vercel, vui lòng chỉ chọn tệp dưới 4MB. Nếu tài liệu quá dài, bạn hãy cắt nhỏ ra hoặc copy/paste văn bản vào ô dưới.')
+      return
+    }
     setExtractingPdf(true)
     setPdfFileName(file.name)
 
