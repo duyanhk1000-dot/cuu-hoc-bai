@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,6 +7,7 @@
 @layer base {
   html {
     font-size: 17px;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   body {
     background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #020617 100%);
@@ -65,35 +68,40 @@
   transform: rotateY(180deg);
 }
 
-/* Giao diện Sáng (Light Mode Overrides) */
+/* Giao diện Sáng Cao Cấp (Premium Light Theme Overrides) */
 .light {
-  background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #f1f5f9 50%, #f8fafc 100%) !important;
-  color: #0f172a !important;
+  background: linear-gradient(135deg, #f5f7ff 0%, #fafaff 50%, #f4f6fc 100%) !important;
+  color: #1e293b !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .light body {
-  background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #f1f5f9 50%, #f8fafc 100%) !important;
-  color: #0f172a !important;
+  background: linear-gradient(135deg, #f5f7ff 0%, #fafaff 50%, #f4f6fc 100%) !important;
+  color: #1e293b !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-/* Light mode panels & cards override */
+/* Glass Panels & Cards in Light Mode */
 .light .glass-panel {
-  background: rgba(255, 255, 255, 0.75) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(15, 23, 42, 0.08) !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(99, 102, 241, 0.08) !important;
+  box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.05), 0 1px 3px rgba(0, 0, 0, 0.01) !important;
 }
 
 .light .glass-card {
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(15, 23, 42, 0.05) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(148, 163, 184, 0.08), 0 2px 4px -1px rgba(148, 163, 184, 0.04) !important;
 }
 
-/* Light mode background overrides */
+.light .glow-indigo {
+  box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.12) !important;
+}
+
+/* Background Overrides for Light Mode */
 .light .bg-slate-950,
 .light .bg-slate-900,
 .light .bg-slate-950\/40,
@@ -105,26 +113,20 @@
 .light .bg-slate-950\/20,
 .light .bg-slate-950\/30,
 .light .bg-slate-950\/10 {
-  background-color: #f8fafc !important; /* slate-50 */
+  background-color: #ffffff !important;
 }
 
 .light .bg-slate-800,
 .light .bg-slate-850,
 .light .bg-slate-950\/50,
 .light .bg-slate-950\/85 {
-  background-color: #f1f5f9 !important; /* slate-100 */
+  background-color: #f8fafc !important; /* Very soft light gray */
 }
 
-.light .bg-slate-950\/60 {
-  background-color: rgba(248, 250, 252, 0.6) !important;
-}
-
-/* Light mode text colors */
-.light .text-slate-100,
-.light .text-slate-200,
-.light .text-slate-300,
+/* Text Hierarchy for Light Mode */
 .light .text-white,
 .light .text-slate-50,
+.light .text-slate-100,
 .light .text-amber-50,
 .light h1,
 .light h2,
@@ -135,31 +137,83 @@
   color: #0f172a !important; /* slate-900 */
 }
 
+.light .text-slate-200 {
+  color: #334155 !important; /* slate-700 for body texts */
+}
+
+.light .text-slate-300 {
+  color: #475569 !important; /* slate-600 for descriptions */
+}
+
 .light .text-slate-400,
 .light .text-slate-500 {
-  color: #475569 !important; /* slate-600 */
+  color: #64748b !important; /* slate-500 for muted texts */
 }
 
 .light .text-slate-650 {
   color: #94a3b8 !important; /* slate-400 */
 }
 
-/* Light mode borders */
+.light .text-indigo-400 {
+  color: #4f46e5 !important; /* Indigo-600 */
+}
+
+.light .text-indigo-300 {
+  color: #6366f1 !important; /* Indigo-500 */
+}
+
+.light .text-amber-400 {
+  color: #d97706 !important; /* Amber-600 */
+}
+
+.light .text-rose-400 {
+  color: #e11d48 !important; /* Rose-600 */
+}
+
+.light .text-emerald-400 {
+  color: #059669 !important; /* Emerald-600 */
+}
+
+/* Borders in Light Mode */
 .light .border-slate-800,
 .light .border-slate-700,
 .light .border-slate-800\/80,
 .light .border-slate-700\/50,
 .light .border-slate-700\/60,
 .light .border-slate-800\/60 {
-  border-color: #cbd5e1 !important; /* slate-300 */
+  border-color: #e2e8f0 !important; /* Slate-200 */
 }
 
-/* Input fields & Textareas */
+/* Sidebar & Navigation Selection */
+.light aside {
+  background-color: rgba(248, 250, 252, 0.75) !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.light .border-slate-850 {
+  border-color: #f1f5f9 !important;
+}
+
+/* Tab selection styling */
+.light .border-indigo-500 {
+  border-color: #4f46e5 !important;
+}
+
+/* Inputs, Textareas and Dropdowns */
 .light input,
-.light textarea {
+.light textarea,
+.light select {
   background-color: #ffffff !important;
   color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+.light input:focus,
+.light textarea:focus,
+.light select:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
 .light input::placeholder,
@@ -167,45 +221,77 @@
   color: #94a3b8 !important;
 }
 
-/* Sidebar overrides */
-.light aside {
-  background-color: rgba(241, 245, 249, 0.4) !important;
+/* Chat Overrides in Light Mode */
+.light .fixed.bottom-24 {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.08) !important;
+}
+
+.light .bg-slate-950\/20 {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.light .bg-slate-950\/10 {
+  background-color: #fafbfc !important;
+}
+
+.light .bg-slate-950\/30,
+.light .bg-slate-950\/60 {
+  background-color: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+/* Chat bubble styling */
+.light .bg-slate-800.text-slate-200 {
+  background-color: #f1f5f9 !important; /* Soft gray for received message */
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.light .bg-indigo-600 {
+  background-color: #4f46e5 !important; /* Indigo for sent message */
+  color: #ffffff !important;
+}
+
+/* Flashcard Specific Overrides */
+.light .perspective-1000 .glass-panel {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.08) !important;
+}
+
+.light .perspective-1000 .bg-indigo-950\/80 {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.08) !important;
+}
+
+.light .perspective-1000 .border-indigo-500\/35 {
   border-color: #cbd5e1 !important;
 }
 
-.light .bg-slate-900\/30 {
-  background-color: rgba(255, 255, 255, 0.5) !important;
+.light .perspective-1000 p.text-slate-200,
+.light .perspective-1000 h3.text-slate-100 {
+  color: #0f172a !important; /* Solid dark text */
 }
 
-/* Chat container overrides */
-.light .bg-slate-950\/10 {
-  background-color: rgba(241, 245, 249, 0.3) !important;
+/* Hover effects & miscellaneous */
+.light .hover\:bg-slate-900\/20:hover {
+  background-color: rgba(241, 245, 249, 0.8) !important;
 }
 
-.light .bg-slate-950\/60 {
-  background-color: rgba(255, 255, 255, 0.8) !important;
+.light .hover\:bg-slate-900\/50:hover {
+  background-color: rgba(241, 245, 249, 0.8) !important;
 }
 
-.light .bg-slate-800.text-slate-200 {
-  background-color: #cbd5e1 !important; /* slate-300 */
-  color: #0f172a !important;
+.light table thead tr {
+  background-color: #f8fafc !important;
+  border-bottom: 2px solid #e2e8f0 !important;
 }
 
-/* Scrollbars in light mode */
-.light ::-webkit-scrollbar-track {
-  background: rgba(241, 245, 249, 0.6);
-}
-.light ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.2);
-}
-.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.4);
-}
-
-/* Flashcard styles */
-.light .perspective-1000 .bg-slate-900 {
-  background-color: #ffffff !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
-  border: 1px solid #cbd5e1 !important;
+.light table tbody tr:hover {
+  background-color: #f8fafc !important;
 }
 
