@@ -25,10 +25,19 @@ export default async function handler(req: any, res: any) {
     prompt += `Yêu cầu lộ trình học tập phải cực kỳ chi tiết, khoa học, phân bổ thời gian hợp lý.\n`;
     prompt += `Hãy trả về lộ trình bằng định dạng Markdown chi tiết cho từng buổi học từ Buổi 1 đến Buổi ${totalLessons}.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
+    } catch (err: any) {
+      console.warn("Gemini 2.5 Flash failed, falling back to 1.5 Flash. Error:", err.message);
+      response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+      });
+    }
 
     return res.status(200).json({ content: response.text });
   } catch (error: any) {

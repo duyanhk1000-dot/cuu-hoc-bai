@@ -34,50 +34,62 @@ export default async function handler(req: any, res: any) {
     prompt += `4. Danh sách đúng 15 thẻ Flashcard (flashcards): Các khái niệm quan trọng nhất của bài học, mỗi thẻ gồm mặt trước (câu hỏi/khái niệm nhanh) và mặt sau (giải thích ngắn gọn).\n`;
     prompt += `5. Đề bài tập kiểm tra đúng 15 câu hỏi (questions): Gồm 10 câu trắc nghiệm (multiple_choice) có 4 lựa chọn bắt đầu bằng 'A. ', 'B. ', 'C. ', 'D. ', và 5 câu tự luận (essay) có correct_answer là hướng dẫn giải chi tiết.\n`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            lecture_content: { type: 'string' },
-            duration_minutes: { type: 'integer' },
-            flashcards: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  front: { type: 'string' },
-                  back: { type: 'string' }
-                },
-                required: ['front', 'back']
-              }
-            },
-            questions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  question_number: { type: 'integer' },
-                  question_type: { type: 'string', enum: ['multiple_choice', 'essay'] },
-                  prompt: { type: 'string' },
-                  options: {
-                    type: 'array',
-                    items: { type: 'string' }
-                  },
-                  correct_answer: { type: 'string' }
-                },
-                required: ['question_number', 'question_type', 'prompt', 'correct_answer']
-              }
+    const generateConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          lecture_content: { type: 'string' },
+          duration_minutes: { type: 'integer' },
+          flashcards: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                front: { type: 'string' },
+                back: { type: 'string' }
+              },
+              required: ['front', 'back']
             }
           },
-          required: ['title', 'lecture_content', 'duration_minutes', 'flashcards', 'questions']
-        }
+          questions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                question_number: { type: 'integer' },
+                question_type: { type: 'string', enum: ['multiple_choice', 'essay'] },
+                prompt: { type: 'string' },
+                options: {
+                  type: 'array',
+                  items: { type: 'string' }
+                },
+                correct_answer: { type: 'string' }
+              },
+              required: ['question_number', 'question_type', 'prompt', 'correct_answer']
+            }
+          }
+        },
+        required: ['title', 'lecture_content', 'duration_minutes', 'flashcards', 'questions']
       }
-    });
+    };
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: generateConfig
+      });
+    } catch (err: any) {
+      console.warn("Gemini 2.5 Flash failed, falling back to 1.5 Flash. Error:", err.message);
+      response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+        config: generateConfig
+      });
+    }
 
     const result = JSON.parse(response.text || '{}');
     return res.status(200).json(result);

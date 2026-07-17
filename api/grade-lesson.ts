@@ -26,35 +26,47 @@ export default async function handler(req: any, res: any) {
     prompt += `2. Nhận xét tổng quan về bài làm (overall_feedback), chỉ ra điểm mạnh, điểm yếu và cách cải thiện.\n`;
     prompt += `3. Phân tích chấm điểm chi tiết từng câu trong 15 câu (detailed_feedback): ghi lại câu trả lời học sinh, xác định đúng/sai (is_correct), số điểm đạt được (score_awarded), và giải thích chi tiết đáp án đúng kèm phân tích lỗi sai nếu có (correct_explanation).\n`;
     
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'object',
-          properties: {
-            total_score: { type: 'number' },
-            overall_feedback: { type: 'string' },
-            detailed_feedback: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  question_number: { type: 'integer' },
-                  student_answer: { type: 'string' },
-                  is_correct: { type: 'boolean' },
-                  score_awarded: { type: 'number' },
-                  correct_explanation: { type: 'string' }
-                },
-                required: ['question_number', 'student_answer', 'is_correct', 'score_awarded', 'correct_explanation']
-              }
+    const gradeConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'object',
+        properties: {
+          total_score: { type: 'number' },
+          overall_feedback: { type: 'string' },
+          detailed_feedback: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                question_number: { type: 'integer' },
+                student_answer: { type: 'string' },
+                is_correct: { type: 'boolean' },
+                score_awarded: { type: 'number' },
+                correct_explanation: { type: 'string' }
+              },
+              required: ['question_number', 'student_answer', 'is_correct', 'score_awarded', 'correct_explanation']
             }
-          },
-          required: ['total_score', 'overall_feedback', 'detailed_feedback']
-        }
+          }
+        },
+        required: ['total_score', 'overall_feedback', 'detailed_feedback']
       }
-    });
+    };
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: gradeConfig
+      });
+    } catch (err: any) {
+      console.warn("Gemini 2.5 Flash failed, falling back to 1.5 Flash. Error:", err.message);
+      response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+        config: gradeConfig
+      });
+    }
 
     const result = JSON.parse(response.text || '{}');
     return res.status(200).json(result);
