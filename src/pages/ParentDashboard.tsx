@@ -795,7 +795,40 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
 
               {/* Syllabus Viewer */}
               <div className="xl:col-span-3 p-6 rounded-2xl glass-panel glow-indigo min-h-[400px]">
-                {selectedSubject ? (
+                {draftSyllabus ? (
+                  <div>
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-800/80 pb-3">
+                      <div>
+                        <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wide">
+                          Bản phác thảo chưa duyệt
+                        </span>
+                        <h2 className="text-lg font-bold text-white mt-1">Lộ trình học môn: {draftSyllabus.subject}</h2>
+                        <span className="text-xs text-slate-400">Độ dài: {draftSyllabus.totalLessons} buổi học</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleApproveSyllabus}
+                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95"
+                        >
+                          Duyệt lộ trình
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Bạn có chắc chắn muốn hủy bản phác thảo này?')) {
+                              setDraftSyllabus(null);
+                            }
+                          }}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition-all active:scale-95"
+                        >
+                          Hủy bỏ
+                        </button>
+                      </div>
+                    </div>
+                    <div className="prose prose-invert max-w-none max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+                      {renderFormattedText(draftSyllabus.content)}
+                    </div>
+                  </div>
+                ) : selectedSubject ? (
                   syllabus ? (
                     <div>
                       <div className="flex justify-between items-center mb-4 border-b border-slate-800/80 pb-3">
