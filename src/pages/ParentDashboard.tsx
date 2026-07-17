@@ -78,13 +78,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [parentFeedback, setParentFeedback] = useState('')
   const [publishingLesson, setPublishingLesson] = useState(false)
 
-  // Draft Syllabus State
-  const [draftSyllabus, setDraftSyllabus] = useState<{
-    subject: string;
-    content: string;
-    totalLessons: number;
-    textbookContent: string;
-  } | null>(null)
+
 
   // Sync feedback when reviewing lesson changes
   useEffect(() => {
@@ -400,13 +394,24 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       })
       const data = await response.json()
       if (response.ok && data.content) {
-        // Lưu tạm lộ trình học để phụ huynh kiểm duyệt
-        setDraftSyllabus({
-          subject: newSubject.trim(),
-          content: data.content,
-          totalLessons: totalLessons,
-          textbookContent: textbookContent.trim()
-        });
+        // Lưu trực tiếp lộ trình học vào database
+        const ok = await dataService.saveSyllabus(
+          newSubject.trim(),
+          data.content,
+          totalLessons,
+          textbookContent.trim()
+        )
+        if (ok) {
+          alert('Đã tạo và lưu lộ trình học môn mới thành công!');
+          const sub = newSubject.trim();
+          setNewSubject('')
+          setTextbookContent('')
+          setPdfFileName('')
+          await loadSubjects()
+          setSelectedSubject(sub)
+        } else {
+          alert('Lỗi khi lưu lộ trình học vào cơ sở dữ liệu!')
+        }
       } else {
         alert(data.error || 'Lỗi khi tạo lộ trình học!')
       }
@@ -414,28 +419,6 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       alert('Lỗi kết nối Serverless Function!')
     } finally {
       setGeneratingSyllabus(false)
-    }
-  }
-
-  const handleApproveSyllabus = async () => {
-    if (!draftSyllabus) return
-    const ok = await dataService.saveSyllabus(
-      draftSyllabus.subject,
-      draftSyllabus.content,
-      draftSyllabus.totalLessons,
-      draftSyllabus.textbookContent
-    )
-    if (ok) {
-      alert('Đã duyệt và lưu lộ trình học thành công!');
-      const sub = draftSyllabus.subject
-      setDraftSyllabus(null)
-      setNewSubject('')
-      setTextbookContent('')
-      setPdfFileName('')
-      await loadSubjects()
-      setSelectedSubject(sub)
-    } else {
-      alert('Không thể lưu lộ trình học!');
     }
   }
 
@@ -795,40 +778,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
 
               {/* Syllabus Viewer */}
               <div className="xl:col-span-3 p-6 rounded-2xl glass-panel glow-indigo min-h-[400px]">
-                {draftSyllabus ? (
-                  <div>
-                    <div className="flex justify-between items-center mb-4 border-b border-slate-800/80 pb-3">
-                      <div>
-                        <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wide">
-                          Bản phác thảo chưa duyệt
-                        </span>
-                        <h2 className="text-lg font-bold text-white mt-1">Lộ trình học môn: {draftSyllabus.subject}</h2>
-                        <span className="text-xs text-slate-400">Độ dài: {draftSyllabus.totalLessons} buổi học</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleApproveSyllabus}
-                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95"
-                        >
-                          Duyệt lộ trình
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm('Bạn có chắc chắn muốn hủy bản phác thảo này?')) {
-                              setDraftSyllabus(null);
-                            }
-                          }}
-                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition-all active:scale-95"
-                        >
-                          Hủy bỏ
-                        </button>
-                      </div>
-                    </div>
-                    <div className="prose prose-invert max-w-none max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
-                      {renderFormattedText(draftSyllabus.content)}
-                    </div>
-                  </div>
-                ) : selectedSubject ? (
+                {selectedSubject ? (
                   syllabus ? (
                     <div>
                       <div className="flex justify-between items-center mb-4 border-b border-slate-800/80 pb-3">
@@ -1529,64 +1479,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             </div>
           </div>
         </div>
-      {/* Draft Syllabus Review Modal */}
-      {draftSyllabus && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
-            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <div>
-                  <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wide">
-                    Kiểm duyệt lộ trình mới từ AI
-                  </span>
-                  <h3 className="text-sm font-bold text-white mt-1">Lộ trình học môn: {draftSyllabus.subject}</h3>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (confirm('Bạn có chắc chắn muốn hủy bỏ bản phác thảo này?')) {
-                    setDraftSyllabus(null);
-                  }
-                }}
-                className="text-slate-400 hover:text-slate-200 text-xs font-bold bg-slate-800 hover:bg-slate-700/60 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="p-6 overflow-y-auto space-y-4 flex-1 scrollbar-thin">
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Dưới đây là dự thảo lộ trình học do AI thiết kế dựa trên thông tin môn học và tài liệu bạn cung cấp. Vui lòng kiểm tra lại. Bạn có thể nhấn <strong>Duyệt & Lưu lộ trình</strong> để lưu chính thức, hoặc <strong>Hủy bỏ</strong> để làm lại.
-              </p>
-              <div className="p-5 bg-slate-950/40 border border-slate-850 rounded-xl max-h-[50vh] overflow-y-auto scrollbar-thin">
-                <div className="prose prose-invert max-w-none text-xs leading-relaxed">
-                  {renderFormattedText(draftSyllabus.content)}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end gap-2.5">
-              <button
-                onClick={() => {
-                  if (confirm('Bạn có chắc chắn muốn hủy bản phác thảo này?')) {
-                    setDraftSyllabus(null);
-                  }
-                }}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-350 text-xs font-bold rounded-xl transition-all active:scale-95"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                onClick={handleApproveSyllabus}
-                className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95 animate-pulse"
-              >
-                Duyệt & Lưu lộ trình
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
