@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 
@@ -111,7 +111,42 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   }, [activeTab, syllabus, lessons, reviewingLesson, reviewTab])
 
   // API Key (saved in sessionState equivalent)
-  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '')
+  // API Keys state (supports multiple keys rotation)
+  const [apiKeys, setApiKeys] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('gemini_api_keys');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Error reading gemini_api_keys:", e);
+    }
+    // Migration fallback for single key
+    const single = localStorage.getItem('gemini_api_key');
+    return single ? [single] : [];
+  })
+  
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [newKeyInput, setNewKeyInput] = useState('');
+
+  const handleAddApiKey = (key: string) => {
+    const trimmed = key.trim();
+    if (!trimmed) return;
+    if (apiKeys.includes(trimmed)) {
+      alert("Khóa API này đã tồn tại!");
+      return;
+    }
+    const updated = [...apiKeys, trimmed];
+    setApiKeys(updated);
+    localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
+    setNewKeyInput('');
+  };
+
+  const handleRemoveApiKey = (index: number) => {
+    const updated = apiKeys.filter((_, i) => i !== index);
+    setApiKeys(updated);
+    localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
+  };
 
   // Load initial data
   useEffect(() => {
@@ -157,11 +192,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     }
   }, [messages, isChatOpen])
 
-  // Local storage for API Key
-  const handleSaveApiKey = (key: string) => {
-    setGeminiApiKey(key)
-    localStorage.setItem('gemini_api_key', key)
-  }
+
 
   const loadSubjects = async () => {
     const list = await dataService.getSubjects()
@@ -283,7 +314,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             fileUrl: publicUrl,
-            apiKey: geminiApiKey
+            apiKeys: apiKeys
           })
         })
         
@@ -313,7 +344,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               fileData: base64Data,
-              apiKey: geminiApiKey
+              apiKeys: apiKeys
             })
           })
           const resData = await response.json()
@@ -352,7 +383,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           subject: newSubject.trim(),
           textbookContent: textbookContent.trim(),
           totalLessons: totalLessons,
-          apiKey: geminiApiKey
+          apiKeys: apiKeys
         })
       })
       const data = await response.json()
@@ -427,7 +458,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           lessonNumber: lessonNum,
           totalLessons: syllabus.total_lessons,
           textbookContent: syllabus.textbook_content || '',
-          apiKey: geminiApiKey,
+          apiKeys: apiKeys,
           parentFeedback: feedback
         })
       })
@@ -540,17 +571,15 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Key Configure field */}
-          <div className="hidden md:flex items-center gap-2">
-            <span className="text-xs text-slate-400">Gemini Key:</span>
-            <input
-              type="password"
-              placeholder="Nhập API Key..."
-              value={geminiApiKey}
-              onChange={(e) => handleSaveApiKey(e.target.value)}
-              className="px-3 py-1 bg-slate-900 border border-slate-700/60 rounded-lg text-xs w-48 text-slate-200 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+          {/* Nút quản lý danh sách API Keys */}
+          <button
+            onClick={() => setIsApiKeyModalOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 px-3.5 py-1.5 rounded-lg border border-indigo-500/25 transition-all text-xs font-semibold"
+            title="Quản lý danh sách API Keys xoay vòng"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>Cấu hình API Keys ({apiKeys.length})</span>
+          </button>
 
           {/* Nút thay đổi theme */}
           <button
@@ -1371,6 +1400,91 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           <MessageSquare className="w-5 h-5" />
         </button>
       </div>
+      {/* API Key Manager Modal */}
+      {isApiKeyModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Cấu hình Gemini API Keys</h3>
+              </div>
+              <button
+                onClick={() => setIsApiKeyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-200 text-xs font-bold bg-slate-800 hover:bg-slate-700/60 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 flex-1 overflow-y-auto">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Nhập các Gemini API keys từ nhiều tài khoản khác nhau. Hệ thống sẽ tự động xoay vòng qua các key này khi tạo lộ trình học, soạn bài hoặc chấm điểm. Nếu một key bị quá tải (503) hoặc hết hạn ngạch (429), hệ thống sẽ tự động chuyển sang key tiếp theo.
+              </p>
+
+              {/* Add key input form */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Thêm API Key mới</label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Dán Gemini API Key ở đây (AIzaSy...)"
+                    value={newKeyInput}
+                    onChange={(e) => setNewKeyInput(e.target.value)}
+                    className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    onClick={() => handleAddApiKey(newKeyInput)}
+                    className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shadow-md shadow-indigo-600/10"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm
+                  </button>
+                </div>
+              </div>
+
+              {/* Keys list */}
+              <div className="space-y-2.5">
+                <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Danh sách API Keys đã thêm ({apiKeys.length})</label>
+                {apiKeys.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+                    Chưa có API key nào được thiết lập. Hệ thống sẽ sử dụng API key mặc định từ máy chủ (nếu có).
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                    {apiKeys.map((key, index) => (
+                      <div key={index} className="flex items-center justify-between gap-3 p-3 bg-slate-950/40 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
+                          <span className="text-slate-550 text-xs select-none">#{index + 1}</span>
+                          <span className="text-xs text-slate-300 font-mono truncate">
+                            {key.substring(0, 8)}...{key.substring(key.length - 8)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveApiKey(index)}
+                          className="text-slate-450 hover:text-rose-450 p-1.5 hover:bg-rose-500/10 rounded-lg transition-all"
+                          title="Xóa khóa này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end">
+              <button
+                onClick={() => setIsApiKeyModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
