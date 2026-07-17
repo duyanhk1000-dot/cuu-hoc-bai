@@ -334,7 +334,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
         if (response.ok && resData.text) {
           setTextbookContent(resData.text)
         } else {
-          alert(resData.error || 'Lỗi khi trích xuất PDF từ URL Supabase!')
+          alert(`Lỗi trích xuất PDF: ${resData.error || 'Không nhận được kết quả văn bản phản hồi từ máy chủ.'}`)
           setPdfFileName('')
         }
       } catch (err: any) {

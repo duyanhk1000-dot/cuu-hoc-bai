@@ -70,12 +70,18 @@ export default async function handler(req: any, res: any) {
     
     // Nếu truyền lên dạng URL, tải file về và chuyển đổi sang base64 ngay trên serverless
     if (fileUrl) {
-      const fileResponse = await fetch(fileUrl);
-      if (!fileResponse.ok) {
-        throw new Error(`Không thể tải tệp tin từ URL Supabase: ${fileResponse.statusText}`);
+      try {
+        const fileResponse = await fetch(fileUrl);
+        if (!fileResponse.ok) {
+          throw new Error(`HTTP ${fileResponse.status} ${fileResponse.statusText}`);
+        }
+        const arrayBuffer = await fileResponse.arrayBuffer();
+        base64Data = Buffer.from(arrayBuffer).toString('base64');
+      } catch (fetchErr: any) {
+        return res.status(400).json({ 
+          error: `Không thể tải file PDF từ Supabase Storage (${fetchErr.message || fetchErr}). Vui lòng kiểm tra cấu hình Storage Bucket 'textbooks' đã bật Public chưa.` 
+        });
       }
-      const arrayBuffer = await fileResponse.arrayBuffer();
-      base64Data = Buffer.from(arrayBuffer).toString('base64');
     }
 
     if (!base64Data) {
