@@ -1,5 +1,39 @@
 import { GoogleGenAI } from '@google/genai';
 
+async function generateWithRetry(ai: any, model: string, options: any, maxRetries = 3, delayMs = 1500) {
+  let lastErr: any = null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        ...options
+      });
+      return response;
+    } catch (err: any) {
+      lastErr = err;
+      const errMsg = err.message || '';
+      const errStatus = err.status || '';
+      const isTemporary = 
+        errStatus === 'UNAVAILABLE' || 
+        errStatus === 503 || 
+        errStatus === 429 ||
+        errMsg.includes('experiencing high demand') || 
+        errMsg.includes('503') || 
+        errMsg.includes('429') ||
+        errMsg.includes('UNAVAILABLE') ||
+        errMsg.includes('overloaded');
+      
+      if (isTemporary && attempt < maxRetries) {
+        console.warn(`Attempt ${attempt} failed with temporary error. Retrying in ${delayMs}ms... Error: ${errMsg}`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -91,8 +125,7 @@ export default async function handler(req: any, res: any) {
       const key = keys[i];
       try {
         const ai = new GoogleGenAI({ apiKey: key });
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+        const response = await generateWithRetry(ai, 'gemini-2.5-flash', {
           contents: prompt,
           config: generateConfig
         });
