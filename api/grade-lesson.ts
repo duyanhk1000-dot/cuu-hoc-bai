@@ -5,19 +5,26 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { questions, studentAnswers, apiKey: clientApiKey } = req.body || {};
+  const { questions, studentAnswers, apiKey: clientApiKey, apiKeys: clientApiKeys } = req.body || {};
   if (!questions || !studentAnswers) {
     return res.status(400).json({ error: 'Questions and studentAnswers are required' });
   }
 
-  const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  // Thu thập danh sách keys hỗ trợ xoay vòng
+  let keys: string[] = [];
+  if (Array.isArray(clientApiKeys) && clientApiKeys.length > 0) {
+    keys = clientApiKeys;
+  } else if (clientApiKey) {
+    keys = [clientApiKey];
+  } else if (process.env.GEMINI_API_KEY) {
+    keys = process.env.GEMINI_API_KEY.split(',').map(k => k.trim()).filter(Boolean);
+  }
+
+  if (keys.length === 0) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server. Please enter your Gemini Key in the web header or configure it in a .env file.' });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
     let prompt = `Bạn là một giáo viên AI chấm điểm nghiêm khắc và chi tiết. Hãy chấm điểm bài làm của học sinh dựa trên danh sách câu hỏi và câu trả lời được cung cấp.\n\n`;
     prompt += `ĐỀ BÀI (Questions):\n---\n${JSON.stringify(questions, null, 2)}\n---\n\n`;
     prompt += `BÀI LÀM CỦA HỌC SINH (Student Answers):\n---\n${JSON.stringify(studentAnswers, null, 2)}\n---\n\n`;
@@ -52,23 +59,34 @@ export default async function handler(req: any, res: any) {
       }
     };
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: gradeConfig
-      });
-    } catch (err: any) {
-      console.warn("Gemini 2.5 Flash failed, falling back to 1.5 Flash. Error:", err.message);
-      response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt,
-        config: gradeConfig
-      });
+    let responseText = '';
+    let success = false;
+    let lastError: any = null;
+
+    // Xoay vòng các API key cho đến khi có key thành công
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      try {
+        const ai = new GoogleGenAI({ apiKey: key });
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: gradeConfig
+        });
+        responseText = response.text || '';
+        success = true;
+        break; // Thành công, thoát vòng lặp
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`API Key ${i+1}/${keys.length} failed in grade-lesson. Error:`, err.message);
+      }
     }
 
-    const result = JSON.parse(response.text || '{}');
+    if (!success) {
+      return res.status(503).json({ error: `Tất cả ${keys.length} API keys đều quá tải hoặc không khả dụng. Lỗi cuối cùng: ${lastError?.message || 'Unavailable'}` });
+    }
+
+    const result = JSON.parse(responseText || '{}');
     return res.status(200).json(result);
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
