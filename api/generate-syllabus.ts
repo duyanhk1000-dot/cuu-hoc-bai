@@ -13,18 +13,25 @@ async function generateWithRetry(ai: any, model: string, options: any, maxRetrie
       lastErr = err;
       const errMsg = err.message || '';
       const errStatus = err.status || '';
+      
+      // Chỉ thử lại với mã lỗi 503 (quá tải hệ thống tạm thời)
       const isTemporary = 
         errStatus === 'UNAVAILABLE' || 
         errStatus === 503 || 
-        errStatus === 429 ||
-        errMsg.includes('experiencing high demand') || 
         errMsg.includes('503') || 
-        errMsg.includes('429') ||
         errMsg.includes('UNAVAILABLE') ||
+        errMsg.includes('experiencing high demand') ||
         errMsg.includes('overloaded');
       
-      if (isTemporary && attempt < maxRetries) {
-        console.warn(`Attempt ${attempt} failed with temporary error. Retrying in ${delayMs}ms... Error: ${errMsg}`);
+      // Không bao giờ thử lại với lỗi 429 (hết hạn ngạch quota sử dụng) hoặc lỗi phân quyền
+      const isQuotaExceeded = 
+        errStatus === 429 || 
+        errMsg.includes('429') || 
+        errMsg.includes('Quota exceeded') || 
+        errMsg.includes('RESOURCE_EXHAUSTED');
+      
+      if (isTemporary && !isQuotaExceeded && attempt < maxRetries) {
+        console.warn(`Attempt ${attempt} failed with temporary 503 error. Retrying in ${delayMs}ms... Error: ${errMsg}`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       } else {
         throw err;
