@@ -349,5 +349,60 @@ export const dataService = {
       setLocal('local_grades', grades.filter(g => g.id !== gradeId));
       return true;
     }
+  },
+
+  // Save API keys for a user (sync to Supabase if configured, else fallback to localUsers)
+  async saveUserApiKeys(username: string, apiKeys: string[]): Promise<boolean> {
+    const keysStr = JSON.stringify(apiKeys);
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from('users')
+          .update({ api_keys: keysStr })
+          .eq('username', username);
+        return !error;
+      } catch (err) {
+        console.error("Error saving API keys to Supabase:", err);
+        return false;
+      }
+    } else {
+      const users = getLocal('local_users', []);
+      const index = users.findIndex((u: any) => u.username === username);
+      if (index !== -1) {
+        users[index].api_keys = keysStr;
+        setLocal('local_users', users);
+        return true;
+      }
+      return false;
+    }
+  },
+
+  // Get API keys for a user
+  async getUserApiKeys(username: string): Promise<string[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('api_keys')
+          .eq('username', username)
+          .single();
+        if (error || !data || !data.api_keys) return [];
+        return JSON.parse(data.api_keys);
+      } catch (err) {
+        console.error("Error getting API keys from Supabase:", err);
+        return [];
+      }
+    } else {
+      const users = getLocal('local_users', []);
+      const found = users.find((u: any) => u.username === username);
+      if (found && found.api_keys) {
+        try {
+          return JSON.parse(found.api_keys);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
   }
 };

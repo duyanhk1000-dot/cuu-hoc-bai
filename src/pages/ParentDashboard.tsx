@@ -129,7 +129,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [newKeyInput, setNewKeyInput] = useState('');
 
-  const handleAddApiKey = (key: string) => {
+  const handleAddApiKey = async (key: string) => {
     const trimmed = key.trim();
     if (!trimmed) return;
     if (apiKeys.includes(trimmed)) {
@@ -139,13 +139,15 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     const updated = [...apiKeys, trimmed];
     setApiKeys(updated);
     localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
+    await dataService.saveUserApiKeys(user.username, updated);
     setNewKeyInput('');
   };
 
-  const handleRemoveApiKey = (index: number) => {
+  const handleRemoveApiKey = async (index: number) => {
     const updated = apiKeys.filter((_, i) => i !== index);
     setApiKeys(updated);
     localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
+    await dataService.saveUserApiKeys(user.username, updated);
   };
 
   // Load initial data
@@ -154,10 +156,20 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     loadGrades()
     loadMessages()
     
+    // Load keys từ Supabase và đồng bộ với localStorage
+    const loadAndSyncApiKeys = async () => {
+      const dbKeys = await dataService.getUserApiKeys(user.username);
+      if (dbKeys && dbKeys.length > 0) {
+        setApiKeys(dbKeys);
+        localStorage.setItem('gemini_api_keys', JSON.stringify(dbKeys));
+      }
+    };
+    loadAndSyncApiKeys();
+    
     // Poll messages every 5 seconds
     const interval = setInterval(loadMessages, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [user.username])
 
   // Load syllabus and lessons when subject changes
   useEffect(() => {

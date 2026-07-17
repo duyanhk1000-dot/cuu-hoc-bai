@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS Users (
     username VARCHAR(100) PRIMARY KEY,
     password VARCHAR(100) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('parent', 'student'))
+    role VARCHAR(50) NOT NULL CHECK (role IN ('parent', 'student')),
+    api_keys TEXT -- Lưu danh sách API Keys dưới dạng chuỗi JSON
 );
 
 -- 2. Bảng Syllabus
