@@ -57,7 +57,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
 
   // Active workspace (when student is study/taking test)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
-  const [workspaceTab, setWorkspaceTab] = useState<'lecture' | 'flashcards' | 'test' | 'result'>('lecture')
+  const [workspaceTab, setWorkspaceTab] = useState<'lecture' | 'flashcards' | 'test' | 'result' | 'pdf'>('lecture')
   
   // Flashcard states
   const [flashcards, setFlashcards] = useState<any[]>([])
@@ -473,6 +473,16 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                     Học qua Flashcard ({flashcards.length})
                   </button>
                   <button
+                    onClick={() => setWorkspaceTab('pdf')}
+                    disabled={isTimerRunning}
+                    className={`pb-3 text-sm font-semibold transition-all relative disabled:opacity-40 ${
+                      workspaceTab === 'pdf' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {workspaceTab === 'pdf' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                    Tài liệu sách PDF
+                  </button>
+                  <button
                     onClick={() => {
                       if (testResult) {
                         setWorkspaceTab('result')
@@ -516,6 +526,47 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                   </div>
                 )}
               </div>
+
+              {/* Tab: PDF Textbook Document */}
+              {workspaceTab === 'pdf' && (
+                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl space-y-4 text-left">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Sách giáo khoa & Tài liệu PDF</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Xem hoặc tải về tài liệu môn học này bên dưới</p>
+                    </div>
+                    {syllabus?.pdf_file_path && (
+                      <a
+                        href={syllabus.pdf_file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 active:scale-95"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Tải về máy tính
+                      </a>
+                    )}
+                  </div>
+
+                  {syllabus?.pdf_file_path ? (
+                    <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                      <iframe
+                        src={`${syllabus.pdf_file_path}#toolbar=0`}
+                        className="w-full h-[65vh]"
+                        title="Tài liệu môn học"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-3 bg-slate-950/20">
+                      <FileText className="w-10 h-10 text-slate-600" />
+                      <div>
+                        <h4 className="font-bold text-slate-300 text-sm">Chưa có file tài liệu PDF</h4>
+                        <p className="text-slate-500 text-xs mt-1">Môn học này chưa có sách giáo khoa PDF đi kèm. Hãy nhờ bố mẹ tải lên tài liệu nhé!</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Tab 1: Lecture Content */}
               {workspaceTab === 'lecture' && (
