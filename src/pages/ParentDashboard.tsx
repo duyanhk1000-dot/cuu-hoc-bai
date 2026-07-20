@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
+import { normalizeText, parseMathAndText as customParseMathAndText } from '../utils/mathNormalizer'
 
 const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
   const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
@@ -484,75 +485,15 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     }
   }
 
-  // Render LaTeX formulas dynamically via window.katex to prevent React DOM reconciliation errors
-  const parseMathAndText = (textStr: string) => {
-    const katex = (window as any).katex;
-    if (!katex) return textStr;
-
-    try {
-      const parts = textStr.split(/(\$\$.*?\$\$|\$.*?\$)/g);
-      return parts.map((part, idx) => {
-        if (part.startsWith('$$') && part.endsWith('$$')) {
-          const formula = part.slice(2, -2).trim();
-          try {
-            const html = katex.renderToString(formula, { displayMode: true, throwOnError: false });
-            return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
-          } catch (e) {
-            return <span key={idx} className="text-rose-400">{part}</span>;
-          }
-        }
-        if (part.startsWith('$') && part.endsWith('$')) {
-          const formula = part.slice(1, -1).trim();
-          try {
-            const html = katex.renderToString(formula, { displayMode: false, throwOnError: false });
-            return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
-          } catch (e) {
-            return <span key={idx} className="text-rose-400">{part}</span>;
-          }
-        }
-        return part;
-      });
-    } catch (e) {
-      return textStr;
-    }
-  };
-
   // Parse Markdown Headings, Bold text, and Mermaid code blocks for clean presentation
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
-    // 1. Khôi phục các ký tự thoát LaTeX bị nuốt bởi JSON parse (tab, carriage return, backspace, formfeed...)
-    let restoredText = text;
-    try {
-      restoredText = text
-        .replace(/\t/g, '\\t')       // Phục hồi \t thành \t (Sửa \text, \times, \theta...)
-        .replace(/\r/g, '\\r')       // Phục hồi \r thành \r (Sửa \rightarrow, \rho...)
-        .replace(/[\b]/g, '\\b')     // Phục hồi \b thành \b (Sửa \braceleft, \beta...)
-        .replace(/\f/g, '\\f')       // Phục hồi \f thành \f (Sửa \frac...)
-        .replace(/\v/g, '\\v');      // Phục hồi \v thành \v (Sửa \varepsilon...)
-    } catch (e) {
-      console.error(e);
-    }
-
-    // 2. Loại bỏ các dấu xuống dòng bên trong công thức $...$ hoặc $$...$$ để tránh bị ngắt dòng làm hỏng Markdown
-    let formattedText = restoredText;
-    try {
-      formattedText = restoredText.replace(/\$([\s\S]*?)\$/g, (match, formula) => {
-        return '$' + formula.replace(/\r?\n/g, ' ') + '$';
-      });
-    } catch (e) {
-      console.error(e);
-    }
-
-    // 2. Chuẩn hóa và tự động thêm xuống dòng trước các thẻ Markdown nếu bị dính chữ (defensive parsing)
-    const cleanedText = formattedText
-      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(##+\s+)/g, '$1\n\n$2') // Thêm dòng trống trước ## hoặc ###
-      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\d+\.\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước 1. ** hoặc 2. **
-      .replace(/([a-zA-Z0-9.\"\!\?\)\_])([\*\-]\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước * ** hoặc - **
-      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\s+[\*\-]\s+)/g, '$1\n\n$2'); // Thêm dòng trống trước danh sách * hoặc -
+    // Chuẩn hóa toàn bộ cấu trúc toán học bằng module Math Normalizer chuyên dụng
+    const normalizedText = normalizeText(text);
 
     // Regex to split text by mermaid code blocks
-    const parts = cleanedText.split(/(```mermaid[\s\S]*?```)/g);
+    const parts = normalizedText.split(/(```mermaid[\s\S]*?```)/g);
 
     return parts.map((part, idx) => {
       if (part.startsWith('```mermaid') && part.endsWith('```')) {
@@ -573,20 +514,20 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       return part.split('\n').map((line, lIdx) => {
         const lineKey = `${idx}-${lIdx}`;
         if (line.startsWith('### ')) {
-          return <h4 key={lineKey} className="text-sm font-bold text-indigo-300 mt-4 mb-2">{parseMathAndText(line.replace('### ', ''))}</h4>
+          return <h4 key={lineKey} className="text-sm font-bold text-indigo-300 mt-4 mb-2">{customParseMathAndText(line.replace('### ', ''))}</h4>
         }
         if (line.startsWith('## ')) {
-          return <h3 key={lineKey} className="text-base font-bold text-indigo-200 mt-5 mb-3">{parseMathAndText(line.replace('## ', ''))}</h3>
+          return <h3 key={lineKey} className="text-base font-bold text-indigo-200 mt-5 mb-3">{customParseMathAndText(line.replace('## ', ''))}</h3>
         }
         if (line.startsWith('# ')) {
-          return <h2 key={lineKey} className="text-lg font-bold text-white mt-6 mb-4 border-b border-slate-700/50 pb-1">{parseMathAndText(line.replace('# ', ''))}</h2>
+          return <h2 key={lineKey} className="text-lg font-bold text-white mt-6 mb-4 border-b border-slate-700/50 pb-1">{customParseMathAndText(line.replace('# ', ''))}</h2>
         }
         if (line.startsWith('* ') || line.startsWith('- ')) {
           const content = line.replace(/^[\*\-]\s+/, '')
           const subParts = content.split(/(\*\*.*?\*\*)/g)
           return (
             <li key={lineKey} className="text-slate-300 text-sm leading-relaxed ml-4 list-disc mb-1 font-normal">
-              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{parseMathAndText(p.slice(2, -2))}</strong> : parseMathAndText(p))}
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
             </li>
           )
         }
@@ -595,12 +536,12 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           const subParts = line.split(/(\*\*.*?\*\*)/g)
           return (
             <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">
-              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{parseMathAndText(p.slice(2, -2))}</strong> : parseMathAndText(p))}
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
             </p>
           )
         }
 
-        return <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">{parseMathAndText(line)}</p>
+        return <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">{customParseMathAndText(line)}</p>
       });
     });
   }
