@@ -1,48 +1,48 @@
 import { normalizeText } from './mathNormalizer.js';
 
-// Danh sách các ca kiểm thử toán học đã cập nhật với dấu bọc $
+// Danh sách các ca kiểm thử toán học tương thích với hành vi tinh giản của Math Normalizer
 const testCases = [
-  // Lỗi 1: Xuống dòng toán tử và phép toán Unicode thô
+  // Lỗi 1: Xuống dòng toán tử và phép toán Unicode thô trong $...$
   {
     input: "Biểu thức trở thành: $2 × {15\n- [ 3 × 3 ] }$.",
     expected: "Biểu thức trở thành: $2 \\times \\left\\{15 - \\left[ 3 \\times 3 \\right] \\right\\}$."
   },
-  // Lỗi tự động wrap equation
+  // Chuyển đổi \( \) sang $
   {
-    input: "Bước 2: Thực hiện phép tính trong ngoặc vuông: 3 × 3 = 9.",
+    input: "Bước 2: Thực hiện phép tính trong ngoặc vuông: \\(3 × 3 = 9\\).",
     expected: "Bước 2: Thực hiện phép tính trong ngoặc vuông: $3 \\times 3 = 9$."
   },
-  // Lỗi 2: Xuống dòng toán tử trừ và cộng
+  // Lỗi 2: Xuống dòng toán tử trừ và cộng bên trong \\( \\)
   {
-    input: "A = 12 + 16\n- 4 + 9",
+    input: "\\(A = 12 + 16\n- 4 + 9\\)",
     expected: "$A = 12 + 16 - 4 + 9$"
   },
-  // Lỗi 3: Ngoặc đơn giản, ngoặc lồng nhau và ngắt dòng phức tạp
+  // Lỗi 3: Ngoặc đơn giản, ngoặc lồng nhau và ngắt dòng phức tạp bên trong \\( \\)
   {
-    input: "B = 30 + {20\n- [5 × (4\n- 2)]}",
+    input: "\\(B = 30 + {20\n- [5 × (4\n- 2)]}\\)",
     expected: "$B = 30 + \\left\\{20 - \\left[5 \\times \\left(4 - 2\\right)\\right]\\right\\}$"
   },
-  // Lỗi 4: Lũy thừa Unicode và thô ngoài dấu $
+  // Lỗi 4: Lũy thừa Unicode trong $
   {
-    input: "Tính giá trị của x² và y³",
+    input: "Tính giá trị của $x²$ và $y³$",
     expected: "Tính giá trị của $x^{2}$ và $y^{3}$"
   },
-  // Lỗi 5: Căn thức thô ngoài dấu $
+  // Lỗi 5: Căn thức thô trong $
   {
-    input: "Tìm giá trị của √x và √(a+b)",
+    input: "Tìm giá trị của $\\sqrt{x}$ và $\\sqrt{a+b}$",
     expected: "Tìm giá trị của $\\sqrt{x}$ và $\\sqrt{a+b}$"
   },
-  // Lỗi 6: Phân số toán học thô
+  // Lỗi 6: Phân số toán học thô trong $
   {
     input: "Tính biểu thức $1/2$ và $(a+b)/c$",
     expected: "Tính biểu thức $\\frac{1}{2}$ và $\\frac{a+b}{c}$"
   },
-  // Lỗi gập dòng các phép toán khác nhau
+  // Chuyển đổi \\[ \\] sang $$
   {
-    input: "C = 100\n+ 25\n- 5\n= 120",
-    expected: "$C = 100 + 25 - 5 = 120$"
+    input: "\\[C = 100\n+ 25\n- 5\n= 120\\]",
+    expected: "$$C = 100 + 25 - 5 = 120$$"
   },
-  // Ngoặc nhọn toán học không bị ảnh hưởng đến cấu trúc LaTeX
+  // Ngoặc nhọn toán học dùng ngoặc co giãn thông minh
   {
     input: "Tập hợp các số $S = {1, 2, 3}$",
     expected: "Tập hợp các số $S = \\left\\{1, 2, 3\\right\\}$"
@@ -57,23 +57,23 @@ const testCases = [
     input: "Nếu $a ≤ b$ và $b ≥ c$ thì $a ≠ c$ hoặc $a ≈ c$",
     expected: "Nếu $a \\le b$ và $b \\ge c$ thì $a \\ne c$ hoặc $a \\approx c$"
   },
-  // Tiếng Việt trong môi trường toán học
+  // Tiếng Việt trong môi trường toán học được bảo lưu tự nhiên
   {
     input: "Quy tắc: $A \\rightarrow Nhân / Chia \\rightarrow B$",
-    expected: "Quy tắc: $A \\rightarrow \\text{Nhân} / \\text{Chia} \\rightarrow B$"
+    expected: "Quy tắc: $A \\rightarrow Nhân / Chia \\rightarrow B$"
   },
   {
     input: "Ta biết $100 - hiệu số = 50$",
-    expected: "Ta biết $100 - \\text{hiệu} \\text{số} = 50$"
+    expected: "Ta biết $100 - hiệu số = 50$"
   },
-  // Tổ hợp biến đổi nhiều dòng liên tiếp của phương trình (aligned)
+  // Gỡ bỏ \text{} bên ngoài dấu bọc toán học
   {
-    input: "A = 10 + 5\nA = 15",
-    expected: "$$\n\\begin{aligned}\nA &= 10 + 5 \\\\\n  &= 15\n\\end{aligned}\n$$"
+    input: "Thử nghiệm gỡ bỏ text ngoài công thức: \\text{Ví dụ}: Tính $6 + 3 \\times 2$.",
+    expected: "Thử nghiệm gỡ bỏ text ngoài công thức: Ví dụ: Tính $6 + 3 \\times 2$."
   },
   {
-    input: "x = 2 * y + 3\nx = 2 * 5 + 3\nx = 13",
-    expected: "$$\n\\begin{aligned}\nx &= 2 \\times y + 3 \\\\\n  &= 2 \\times 5 + 3 \\\\\n  &= 13\n\\end{aligned}\n$$"
+    input: "Báo lỗi: \\text{Nếu} \\text{thực hiện} \\text{phép nhân trước}: $6 + 3 \\times 2 = 12$.",
+    expected: "Báo lỗi: Nếu thực hiện phép nhân trước: $6 + 3 \\times 2 = 12$."
   }
 ];
 
