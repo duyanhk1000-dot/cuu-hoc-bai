@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 
 const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
@@ -507,9 +507,22 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
               {/* Tab 1: Lecture Content */}
               {workspaceTab === 'lecture' && (
                 <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl">
-                  <h2 className="text-xl font-bold text-white mb-4 border-b border-slate-800 pb-3">
-                    Bài {activeLesson.lesson_number}: {activeLesson.title}
-                  </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
+                    <h2 className="text-xl font-bold text-white">
+                      Bài {activeLesson.lesson_number}: {activeLesson.title}
+                    </h2>
+                    {syllabus?.pdf_file_path && (
+                      <a
+                        href={syllabus.pdf_file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition-all w-fit active:scale-95"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Xem Sách Tài Liệu PDF
+                      </a>
+                    )}
+                  </div>
                   <div className="prose prose-invert max-w-none max-h-[60vh] overflow-y-auto pr-3 scrollbar-thin">
                     {renderFormattedText(activeLesson.lecture_content)}
                   </div>
@@ -784,9 +797,22 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                     </div>
                   ) : (
                     <>
-                      <div>
-                        <h3 className="font-bold text-white text-base">Bài giảng môn: {selectedSubject}</h3>
-                        <span className="text-xs text-slate-400">Lộ trình chốt: {syllabus.total_lessons} buổi học</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-900/40 p-4 border border-slate-800/80 rounded-2xl">
+                        <div>
+                          <h3 className="font-bold text-white text-base">Bài giảng môn: {selectedSubject}</h3>
+                          <span className="text-xs text-slate-400">Lộ trình chốt: {syllabus.total_lessons} buổi học</span>
+                        </div>
+                        {syllabus.pdf_file_path && (
+                          <a
+                            href={syllabus.pdf_file_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all w-fit shadow-sm shadow-indigo-500/5 active:scale-95"
+                          >
+                            <FileText className="w-4 h-4" />
+                            Xem & Tải Tài Liệu Sách PDF
+                          </a>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

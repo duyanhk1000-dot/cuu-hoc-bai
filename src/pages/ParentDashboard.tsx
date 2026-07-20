@@ -70,6 +70,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [generatingLessonNum, setGeneratingLessonNum] = useState<number | null>(null)
   const [extractingPdf, setExtractingPdf] = useState(false)
   const [pdfFileName, setPdfFileName] = useState('')
+  const [uploadedPdfUrl, setUploadedPdfUrl] = useState('')
 
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null)
   const [reviewingLesson, setReviewingLesson] = useState<Lesson | null>(null)
@@ -314,6 +315,8 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           .from('textbooks')
           .getPublicUrl(fileName)
           
+        setUploadedPdfUrl(publicUrl)
+          
         // Gửi URL này lên Serverless Function
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
@@ -399,7 +402,8 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           newSubject.trim(),
           data.content,
           totalLessons,
-          textbookContent.trim()
+          textbookContent.trim(),
+          uploadedPdfUrl
         )
         if (ok) {
           alert('Đã tạo và lưu lộ trình học môn mới thành công!');
@@ -407,6 +411,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           setNewSubject('')
           setTextbookContent('')
           setPdfFileName('')
+          setUploadedPdfUrl('')
           await loadSubjects()
           setSelectedSubject(sub)
         } else {
