@@ -289,12 +289,55 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Render LaTeX formulas dynamically via window.katex to prevent React DOM reconciliation errors
+  const parseMathAndText = (textStr: string) => {
+    const katex = (window as any).katex;
+    if (!katex) return textStr;
+
+    try {
+      const parts = textStr.split(/(\$\$.*?\$\$|\$.*?\$)/g);
+      return parts.map((part, idx) => {
+        if (part.startsWith('$$') && part.endsWith('$$')) {
+          const formula = part.slice(2, -2).trim();
+          try {
+            const html = katex.renderToString(formula, { displayMode: true, throwOnError: false });
+            return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
+          } catch (e) {
+            return <span key={idx} className="text-rose-400">{part}</span>;
+          }
+        }
+        if (part.startsWith('$') && part.endsWith('$')) {
+          const formula = part.slice(1, -1).trim();
+          try {
+            const html = katex.renderToString(formula, { displayMode: false, throwOnError: false });
+            return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
+          } catch (e) {
+            return <span key={idx} className="text-rose-400">{part}</span>;
+          }
+        }
+        return part;
+      });
+    } catch (e) {
+      return textStr;
+    }
+  };
+
   // Parse Markdown Headings, Bold text, and Mermaid code blocks for clean presentation
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
-    // Chuẩn hóa và tự động thêm xuống dòng trước các thẻ Markdown nếu bị dính chữ (defensive parsing)
-    const cleanedText = text
+    // 1. Loại bỏ các dấu xuống dòng bên trong công thức $...$ hoặc $$...$$ để tránh bị ngắt dòng làm hỏng Markdown
+    let formattedText = text;
+    try {
+      formattedText = text.replace(/\$([\s\S]*?)\$/g, (match, formula) => {
+        return '$' + formula.replace(/\r?\n/g, ' ') + '$';
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 2. Chuẩn hóa và tự động thêm xuống dòng trước các thẻ Markdown nếu bị dính chữ (defensive parsing)
+    const cleanedText = formattedText
       .replace(/([a-zA-Z0-9.\"\!\?\)\_])(##+\s+)/g, '$1\n\n$2') // Thêm dòng trống trước ## hoặc ###
       .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\d+\.\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước 1. ** hoặc 2. **
       .replace(/([a-zA-Z0-9.\"\!\?\)\_])([\*\-]\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước * ** hoặc - **
@@ -322,34 +365,34 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
       return part.split('\n').map((line, lIdx) => {
         const lineKey = `${idx}-${lIdx}`;
         if (line.startsWith('### ')) {
-          return <h4 key={lineKey} className="text-sm font-bold text-indigo-300 mt-4 mb-2">{line.replace('### ', '')}</h4>
+          return <h4 key={lineKey} className="text-sm font-bold text-indigo-300 mt-4 mb-2">{parseMathAndText(line.replace('### ', ''))}</h4>
         }
         if (line.startsWith('## ')) {
-          return <h3 key={lineKey} className="text-base font-bold text-indigo-200 mt-5 mb-3">{line.replace('## ', '')}</h3>
+          return <h3 key={lineKey} className="text-base font-bold text-indigo-200 mt-5 mb-3">{parseMathAndText(line.replace('## ', ''))}</h3>
         }
         if (line.startsWith('# ')) {
-          return <h2 key={lineKey} className="text-lg font-bold text-white mt-6 mb-4 border-b border-slate-700/50 pb-1">{line.replace('# ', '')}</h2>
+          return <h2 key={lineKey} className="text-lg font-bold text-white mt-6 mb-4 border-b border-slate-700/50 pb-1">{parseMathAndText(line.replace('# ', ''))}</h2>
         }
         if (line.startsWith('* ') || line.startsWith('- ')) {
           const content = line.replace(/^[\*\-]\s+/, '')
-          const parts = content.split(/(\*\*.*?\*\*)/g)
+          const subParts = content.split(/(\*\*.*?\*\*)/g)
           return (
             <li key={lineKey} className="text-slate-300 text-sm leading-relaxed ml-4 list-disc mb-1 font-normal">
-              {parts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{p.slice(2, -2)}</strong> : p)}
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{parseMathAndText(p.slice(2, -2))}</strong> : parseMathAndText(p))}
             </li>
           )
         }
         
         if (line.includes('**')) {
-          const parts = line.split(/(\*\*.*?\*\*)/g)
+          const subParts = line.split(/(\*\*.*?\*\*)/g)
           return (
             <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">
-              {parts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{p.slice(2, -2)}</strong> : p)}
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{parseMathAndText(p.slice(2, -2))}</strong> : parseMathAndText(p))}
             </p>
           )
         }
 
-        return <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">{line}</p>
+        return <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">{parseMathAndText(line)}</p>
       });
     });
   }
