@@ -89,6 +89,9 @@ export default async function handler(req: any, res: any) {
     prompt += `4. Danh sách đúng 15 thẻ Flashcard (flashcards): Các khái niệm quan trạng nhất của bài học, mỗi thẻ gồm mặt trước (câu hỏi/khái niệm nhanh) và mặt sau (giải thích ngắn gọn).\n`;
     prompt += `5. Đề bài tập kiểm tra đúng 15 câu hỏi (questions): Gồm 10 câu trắc nghiệm (multiple_choice) có 4 lựa chọn bắt đầu bằng 'A. ', 'B. ', 'C. ', 'D. ', và 5 câu tự luận (essay) có correct_answer là hướng dẫn giải chi tiết.\n`;
     prompt += `6. Sơ đồ tư duy (mindmap): Viết mã nguồn vẽ sơ đồ tư duy bằng cú pháp Mermaid.js (dùng đồ thị graph TD hoặc cấu trúc mindmap tùy bài, không viết các thẻ nháy \`\`\`mermaid) để tóm tắt và trực quan hóa toàn bộ kiến thức của bài học này giúp học sinh dễ ghi nhớ. LƯU Ý QUAN TRỌNG: Tất cả các nhãn của nút (node labels) chứa tiếng Việt, dấu cách hoặc ký tự đặc biệt BẮT BUỘC phải bọc trong dấu ngoặc kép (ví dụ: A["Tên bài học"] --> B["Khái niệm chính"]). Không được viết tiếng Việt ngoài dấu ngoặc kép của nhãn nút để tránh lỗi vẽ sơ đồ.\n`;
+    prompt += `\nLƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (LaTeX):\n`;
+    prompt += `- Do đầu ra được cấu hình là JSON, mọi ký tự gạch chéo ngược '\\' của lệnh LaTeX BẮT BUỘC phải được viết kép thành '\\\\' trong phản hồi (ví dụ: viết '\\\\times', '\\\\frac', '\\\\text', '\\\\rightarrow', '\\\\lbrace', '\\\\rbrace').\n`;
+    prompt += `- Đối với các từ ngữ, chữ tiếng Việt có dấu xuất hiện bên trong công thức toán LaTeX ($...$ hoặc $$...$$), bạn BẮT BUỘC phải bọc chúng trong thẻ '\\\\text{...}' (ví dụ: viết '$A \\\\rightarrow \\\\text{Nhân}/\\\\text{Chia} \\\\rightarrow B$' hoặc '$100 - \\\\text{hiệu số} = 50$'). Không được để chữ tiếng Việt tự do ngoài thẻ '\\\\text{}' trong công thức toán.\n`;
 
     const generateConfig = {
       responseMimeType: 'application/json',

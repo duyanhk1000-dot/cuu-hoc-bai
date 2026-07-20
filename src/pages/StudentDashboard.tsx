@@ -326,10 +326,23 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
-    // 1. Loại bỏ các dấu xuống dòng bên trong công thức $...$ hoặc $$...$$ để tránh bị ngắt dòng làm hỏng Markdown
-    let formattedText = text;
+    // 1. Khôi phục các ký tự thoát LaTeX bị nuốt bởi JSON parse (tab, carriage return, backspace, formfeed...)
+    let restoredText = text;
     try {
-      formattedText = text.replace(/\$([\s\S]*?)\$/g, (match, formula) => {
+      restoredText = text
+        .replace(/\t/g, '\\t')       // Phục hồi \t thành \t (Sửa \text, \times, \theta...)
+        .replace(/\r/g, '\\r')       // Phục hồi \r thành \r (Sửa \rightarrow, \rho...)
+        .replace(/[\b]/g, '\\b')     // Phục hồi \b thành \b (Sửa \braceleft, \beta...)
+        .replace(/\f/g, '\\f')       // Phục hồi \f thành \f (Sửa \frac...)
+        .replace(/\v/g, '\\v');      // Phục hồi \v thành \v (Sửa \varepsilon...)
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 2. Loại bỏ các dấu xuống dòng bên trong công thức $...$ hoặc $$...$$ để tránh bị ngắt dòng làm hỏng Markdown
+    let formattedText = restoredText;
+    try {
+      formattedText = restoredText.replace(/\$([\s\S]*?)\$/g, (match, formula) => {
         return '$' + formula.replace(/\r?\n/g, ' ') + '$';
       });
     } catch (e) {
