@@ -1472,6 +1472,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             </div>
           </div>
         </div>
+      )}
 
       {/* Create Lesson Reference Modal */}
       {activeCreateLessonNum !== null && (
