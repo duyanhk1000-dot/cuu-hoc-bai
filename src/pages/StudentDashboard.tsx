@@ -495,6 +495,19 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                   </button>
                 </div>
 
+                {/* Download PDF button on the right of the tabs menu */}
+                {!isTimerRunning && syllabus?.pdf_file_path && (
+                  <a
+                    href={syllabus.pdf_file_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pb-3 inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-350 text-xs font-bold transition-all select-none hover:translate-y-[-1px]"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Xem & Tải Tài Liệu
+                  </a>
+                )}
+
                 {/* Pulsing Timer pill during test */}
                 {isTimerRunning && (
                   <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold animate-pulse">
@@ -507,22 +520,9 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
               {/* Tab 1: Lecture Content */}
               {workspaceTab === 'lecture' && (
                 <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
-                    <h2 className="text-xl font-bold text-white">
-                      Bài {activeLesson.lesson_number}: {activeLesson.title}
-                    </h2>
-                    {syllabus?.pdf_file_path && (
-                      <a
-                        href={syllabus.pdf_file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition-all w-fit active:scale-95"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Xem Sách Tài Liệu PDF
-                      </a>
-                    )}
-                  </div>
+                  <h2 className="text-xl font-bold text-white mb-4 border-b border-slate-800 pb-3">
+                    Bài {activeLesson.lesson_number}: {activeLesson.title}
+                  </h2>
                   <div className="prose prose-invert max-w-none max-h-[60vh] overflow-y-auto pr-3 scrollbar-thin">
                     {renderFormattedText(activeLesson.lecture_content)}
                   </div>

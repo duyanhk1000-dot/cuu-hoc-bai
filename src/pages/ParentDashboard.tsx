@@ -717,7 +717,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-400 block font-medium">Tài liệu học tập (PDF)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-slate-400 block font-medium">Tài liệu học tập (PDF)</label>
+                      <span className="text-[10px] text-amber-500 font-medium">Khuyên dùng: File ngắn dưới 5 trang (ví dụ: trang mục lục)</span>
+                    </div>
                     <div className="relative border border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-slate-950/40">
                       <input
                         type="file"
