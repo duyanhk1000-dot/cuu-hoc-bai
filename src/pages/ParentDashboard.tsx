@@ -283,48 +283,56 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       alert('Chỉ chấp nhận tệp định dạng PDF!')
       return
     }
-    if (isSupabaseConfigured) {
-      if (file.size > 50 * 1024 * 1024) {
-        alert('⚠️ Tệp PDF quá lớn! Dung lượng file tải lên Supabase Storage tối đa là 50MB.')
-        return
-      }
-    } else {
-      if (file.size > 4 * 1024 * 1024) {
-        alert('⚠️ Đang ở chế độ Offline. Vui lòng chỉ chọn tệp dưới 4MB để tải trực tiếp lên Vercel.')
-        return
-      }
+
+    // Giới hạn 4MB để an toàn khi chuyển đổi base64 và gửi lên Vercel Serverless
+    if (file.size > 4 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Vui lòng chọn tệp PDF ngắn (dưới 5 trang, ví dụ trang Mục lục) dung lượng dưới 4MB để tải lên.')
+      return
     }
 
     setExtractingPdf(true)
     setPdfFileName(file.name)
 
-    if (isSupabaseConfigured) {
+    // Đọc file dưới dạng base64 làm phương án dự phòng (chắc chắn thành công không cần phụ thuộc Storage)
+    const reader = new FileReader()
+    reader.onload = async () => {
       try {
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+        const base64Result = reader.result as string
+        const base64Data = base64Result.split(',')[1] // Loại bỏ header base64
         
-        // Tải file trực tiếp lên Supabase Storage (bucket 'textbooks')
-        const { data, error: uploadError } = await supabase.storage
-          .from('textbooks')
-          .upload(fileName, file)
-          
-        if (uploadError) {
-          throw new Error(uploadError.message)
+        let publicUrl = ''
+        
+        // 1. Thử tải file lên Supabase Storage để làm link tải tài liệu lâu dài cho học sinh
+        if (isSupabaseConfigured) {
+          try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+            
+            const { data, error: uploadError } = await supabase.storage
+              .from('textbooks')
+              .upload(fileName, file)
+              
+            if (!uploadError) {
+              const { data: { publicUrl: pUrl } } = supabase.storage
+                .from('textbooks')
+                .getPublicUrl(fileName)
+              publicUrl = pUrl
+              setUploadedPdfUrl(pUrl)
+            } else {
+              console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+            }
+          } catch (storageErr) {
+            console.warn("Không kết nối được Supabase Storage (CORS hoặc ad-blocker), chuyển sang chế độ truyền trực tiếp:", storageErr)
+          }
         }
-        
-        // Lấy Public URL của file đã tải lên
-        const { data: { publicUrl } } = supabase.storage
-          .from('textbooks')
-          .getPublicUrl(fileName)
-          
-        setUploadedPdfUrl(publicUrl)
-          
-        // Gửi URL này lên Serverless Function
+
+        // 2. Gửi dữ liệu lên API trích xuất (Ưu tiên link URL nếu upload thành công, hoặc dùng base64 nếu upload lỗi)
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            fileUrl: publicUrl,
+            fileUrl: publicUrl || undefined,
+            fileData: publicUrl ? undefined : base64Data,
             apiKeys: apiKeys
           })
         })
@@ -337,48 +345,18 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           setPdfFileName('')
         }
       } catch (err: any) {
-        alert(`Lỗi tải lên hoặc xử lý tệp PDF: ${err.message || err}`)
+        alert(`Lỗi xử lý tệp PDF: ${err.message || err}`)
         setPdfFileName('')
       } finally {
         setExtractingPdf(false)
       }
-    } else {
-      // Chế độ Offline Fallback: chuyển đổi sang base64 ở client và gửi qua body
-      const reader = new FileReader()
-      reader.onload = async () => {
-        try {
-          const base64Result = reader.result as string
-          const base64Data = base64Result.split(',')[1]
-          
-          const response = await fetch('/api/extract-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              fileData: base64Data,
-              apiKeys: apiKeys
-            })
-          })
-          const resData = await response.json()
-          if (response.ok && resData.text) {
-            setTextbookContent(resData.text)
-          } else {
-            alert(resData.error || 'Lỗi khi trích xuất PDF (Chế độ offline)!')
-            setPdfFileName('')
-          }
-        } catch {
-          alert('Lỗi kết nối API trích xuất PDF!')
-          setPdfFileName('')
-        } finally {
-          setExtractingPdf(false)
-        }
-      }
-      reader.onerror = () => {
-        alert('Lỗi đọc tệp tin PDF cục bộ!')
-        setExtractingPdf(false)
-        setPdfFileName('')
-      }
-      reader.readAsDataURL(file)
     }
+    reader.onerror = () => {
+      alert('Lỗi đọc tệp tin PDF cục bộ!')
+      setExtractingPdf(false)
+      setPdfFileName('')
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleGenerateSyllabus = async (e: React.FormEvent) => {
