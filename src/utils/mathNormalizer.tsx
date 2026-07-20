@@ -58,7 +58,28 @@ export const restoreEscapedJSONChars = (text: string): string => {
 };
 
 /**
- * 2. Gộp các dòng công thức toán bị ngắt dòng sai lệch
+ * 2. Gỡ bỏ (unwrap) các lệnh \text{...} bị AI sinh nhầm ngoài môi trường toán học
+ * Ví dụ: "\text{Ví dụ}: Tính 6 + 3 \times 2." -> "Ví dụ: Tính 6 + 3 \times 2."
+ */
+export const unwrapExternalTextCommands = (text: string): string => {
+  if (!text) return '';
+  
+  // Tách văn bản thành các khối xen kẽ: bên ngoài và bên trong dấu $ hoặc $$
+  const parts = text.split(/(\$\$.*?\$\$|\$.*?\$)/gs);
+  
+  const cleanedParts = parts.map((part, idx) => {
+    // Chỉ xử lý các khối chẵn (nằm NGOÀI dấu bọc toán học $ hoặc $$)
+    if (idx % 2 === 0) {
+      return part.replace(/\\+text\s*\{([^{}]+)\}/g, '$1');
+    }
+    return part;
+  });
+  
+  return cleanedParts.join('');
+};
+
+/**
+ * 3. Gộp các dòng công thức toán bị ngắt dòng sai lệch
  */
 export const mergeBrokenMathLines = (text: string): string => {
   if (!text) return '';
@@ -93,7 +114,7 @@ export const mergeBrokenMathLines = (text: string): string => {
 };
 
 /**
- * 3. Tự động bao bọc các biểu thức toán học thô trong văn bản bằng ký tự $ hoặc $$
+ * 4. Tự động bao bọc các biểu thức toán học thô trong văn bản bằng ký tự $ hoặc $$ (Chỉ dùng cho văn bản thô bên ngoài $)
  */
 export const wrapRawMathInDelimiters = (text: string): string => {
   if (!text) return '';
@@ -105,36 +126,57 @@ export const wrapRawMathInDelimiters = (text: string): string => {
       return line;
     }
 
-    // A. Bao bọc các dòng phương trình độc lập
+    // A. Bao bọc các dòng phương trình độc lập (Không chạy các bộ lọc bọc nhỏ hơn nếu đã bọc cả dòng)
     // Ví dụ: "A = 12 + 8 × 2" -> "$A = 12 + 8 × 2$"
     const isStandaloneEquation = 
       trimmed.includes('=') && 
-      /^[a-zA-Z\d\s\+\-\*\/\:\=\(\)\[\]\{\}\×\÷\·\.\²\³\√\<\>\≤\≥\≠\≈]+$/.test(trimmed);
+      /^[a-zA-Z\d\s\+\-\*\/\:\=\(\)\[\]\{\}\×\÷\·\.\²\³\√\<\>\≤\≥\≠\≈\^]+$/.test(trimmed);
 
     if (isStandaloneEquation) {
       return `$${trimmed}$`;
     }
 
-    return line;
+    let lineResult = line;
+
+    // B. Bao bọc các cụm phép tính toán học ngắn có chứa dấu bằng trong câu văn
+    // Ví dụ: "3 × 3 = 9" -> "$3 × 3 = 9$" hoặc "2^2 = 4" -> "$2^2 = 4$"
+    lineResult = lineResult.replace(/(?<!\$)\b(\d+\s*[\+\-\×\÷\:\*\/\^]\s*\d+(?:\s*[\+\-\×\÷\:\*\/\^]\s*\d+)*\s*\=\s*\d+)\b(?!\$)/g, '$$$1$');
+
+    // C. Bao bọc các biểu thức tính toán không chứa dấu bằng nhưng có các toán tử toán học
+    // Ví dụ: "6 + 3 \times 2" -> "$6 + 3 \times 2$"
+    // Ví dụ: "24 \div 6 + 3 \times 5 - 4" -> "$24 \div 6 + 3 \times 5 - 4$"
+    lineResult = lineResult.replace(/(?<![\$\w\\])\b(\d+\s*(?:[\+\-\*\/\×\÷\·\^]|\\times|\\div)\s*\d+(?:\s*(?:[\+\-\*\/\×\÷\·\^]|\\times|\\div)\s*\d+)*)\b(?!\$)/g, '$$$1$');
+
+    // D. Bao bọc các ẩn số hoặc cơ số có mũ hoặc căn thức đứng đơn lẻ ngoài dấu $
+    // Ví dụ: "x²" -> "$x²$" hoặc "2^2" -> "$2^2$"
+    lineResult = lineResult.replace(/(?<![\$\w])([a-zA-Z\d]+[²³⁴⁵⁶⁷⁸⁹⁰]+)(?![\$\w])/g, '$$$1$');
+    lineResult = lineResult.replace(/(?<![\$\w])([a-zA-Z\d]+\^[a-zA-Z\d]+)(?![\$\w])/g, '$$$1$');
+    lineResult = lineResult.replace(/(?<![\$\w])(√[a-zA-Z\d]+)(?![\$\w])/g, '$$$1$');
+    lineResult = lineResult.replace(/(?<![\$\w])(√\([^\)]+\))(?![\$\w])/g, '$$$1$');
+
+    return lineResult;
   });
 
-  let result = lines.join('\n');
-
-  // B. Bao bọc các cụm phép tính toán học ngắn trong câu văn
-  // Ví dụ: "3 × 3 = 9" -> "$3 × 3 = 9$"
-  result = result.replace(/(?<!\$)\b(\d+\s*[\+\-\×\÷\:\*\/]\s*\d+(?:\s*[\+\-\×\÷\:\*\/]\s*\d+)*\s*\=\s*\d+)\b(?!\$)/g, '$$$1$');
-
-  // C. Bao bọc các ẩn số có mũ hoặc căn thức đứng đơn lẻ ngoài dấu $
-  // Ví dụ: "x²" -> "$x²$"
-  result = result.replace(/(?<![\$\w])([a-zA-Z][²³⁴⁵⁶⁷⁸⁹⁰]+)(?![\$\w])/g, '$$$1$');
-  result = result.replace(/(?<![\$\w])(√[a-zA-Z\d]+)(?![\$\w])/g, '$$$1$');
-  result = result.replace(/(?<![\$\w])(√\([^\)]+\))(?![\$\w])/g, '$$$1$');
-
-  return result;
+  return lines.join('\n');
 };
 
 /**
- * 4. Chuẩn hóa một khối công thức toán LaTeX đơn lẻ (nằm giữa $...$ hoặc $$...$$)
+ * Helper: Chỉ chạy bộ bọc công thức thô bên ngoài dấu $ hoặc $$
+ */
+export const wrapRawMathOutsideDelimiters = (text: string): string => {
+  if (!text) return '';
+  const parts = text.split(/(\$\$.*?\$\$|\$.*?\$)/gs);
+  const processed = parts.map((part, idx) => {
+    if (idx % 2 === 0) {
+      return wrapRawMathInDelimiters(part);
+    }
+    return part;
+  });
+  return processed.join('');
+};
+
+/**
+ * 5. Chuẩn hóa một khối công thức toán LaTeX đơn lẻ (nằm giữa $...$ hoặc $$...$$)
  */
 export const normalizeMathFormula = (formula: string): string => {
   let f = formula.trim();
@@ -220,7 +262,7 @@ export const normalizeMathFormula = (formula: string): string => {
 };
 
 /**
- * 5. Tự động phát hiện các chuỗi biến đổi nhiều dòng liên tiếp để gộp thành aligned block
+ * 6. Tự động phát hiện các chuỗi biến đổi nhiều dòng liên tiếp để gộp thành aligned block
  */
 export const groupConsecutiveEquations = (text: string): string => {
   if (!text) return '';
@@ -300,7 +342,7 @@ export const groupConsecutiveEquations = (text: string): string => {
 };
 
 /**
- * 6. Pipeline hoàn chỉnh chuẩn hóa văn bản bài giảng chứa toán học
+ * 7. Pipeline hoàn chỉnh chuẩn hóa văn bản bài giảng chứa toán học
  */
 export const normalizeText = (text: string): string => {
   if (!text) return '';
@@ -308,14 +350,17 @@ export const normalizeText = (text: string): string => {
   // Bước 1: Khôi phục ký tự bị JSON nuốt
   let step1 = restoreEscapedJSONChars(text);
 
-  // Bước 2: Nối các dòng toán bị ngắt dòng lỗi
-  let step2 = mergeBrokenMathLines(step1);
+  // Bước 2: Gỡ bỏ các lệnh \text{} bị AI sinh nhầm ngoài dấu $
+  let step2 = unwrapExternalTextCommands(step1);
 
-  // Bước 3: Tự động bao bọc toán học thô bên ngoài dấu $
-  let step3 = wrapRawMathInDelimiters(step2);
+  // Bước 3: Nối các dòng toán bị ngắt dòng lỗi
+  let step3 = mergeBrokenMathLines(step2);
 
-  // Bước 4: Tìm và chuẩn hóa nội dung các biểu thức toán LaTeX nằm giữa $ hoặc $$
-  let step4 = step3.replace(/(\$\$.*?\$\$|\$.*?\$)/gs, (match) => {
+  // Bước 4: Tự động bao bọc toán học thô chỉ ngoài dấu $ (Tránh đè lên khối có sẵn)
+  let step4 = wrapRawMathOutsideDelimiters(step3);
+
+  // Bước 5: Tìm và chuẩn hóa nội dung các biểu thức toán LaTeX nằm giữa $ hoặc $$
+  let step5 = step4.replace(/(\$\$.*?\$\$|\$.*?\$)/gs, (match) => {
     const isDisplay = match.startsWith('$$');
     const delimiters = isDisplay ? '$$' : '$';
     const rawFormula = isDisplay ? match.slice(2, -2) : match.slice(1, -1);
@@ -324,14 +369,14 @@ export const normalizeText = (text: string): string => {
     return `${delimiters}${cleanFormula}${delimiters}`;
   });
 
-  // Bước 5: Nhóm nhiều dòng phương trình liên tiếp thành aligned block
-  let step5 = groupConsecutiveEquations(step4);
+  // Bước 6: Nhóm nhiều dòng phương trình liên tiếp thành aligned block
+  let step6 = groupConsecutiveEquations(step5);
 
-  return step5;
+  return step6;
 };
 
 /**
- * 7. Parser và Render công thức toán LaTeX thời gian thực (React Component level)
+ * 8. Parser và Render công thức toán LaTeX thời gian thực (React Component level)
  */
 export const parseMathAndText = (textStr: string): React.ReactNode => {
   const katex = (window as any).katex;
@@ -340,7 +385,7 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
   }
 
   try {
-    const parts = textStr.split(/(\$\$.*?\$\$|\$.*?\$)/g);
+    const parts = textStr.split(/(\$\$.*?\ $\$|\$.*?\$)/g);
     
     return parts.map((part, idx) => {
       const key = `math-part-${idx}`;

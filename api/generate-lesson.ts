@@ -92,6 +92,7 @@ export default async function handler(req: any, res: any) {
     prompt += `\nLƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (LaTeX):\n`;
     prompt += `- Do đầu ra được cấu hình là JSON, mọi ký tự gạch chéo ngược '\\' của lệnh LaTeX BẮT BUỘC phải được viết kép thành '\\\\' trong phản hồi (ví dụ: viết '\\\\times', '\\\\frac', '\\\\text', '\\\\rightarrow', '\\\\lbrace', '\\\\rbrace').\n`;
     prompt += `- Đối với các từ ngữ, chữ tiếng Việt có dấu xuất hiện bên trong công thức toán LaTeX ($...$ hoặc $$...$$), bạn BẮT BUỘC phải bọc chúng trong thẻ '\\\\text{...}' (ví dụ: viết '$A \\\\rightarrow \\\\text{Nhân}/\\\\text{Chia} \\\\rightarrow B$' hoặc '$100 - \\\\text{hiệu số} = 50$'). Không được để chữ tiếng Việt tự do ngoài thẻ '\\\\text{}' trong công thức toán.\n`;
+    prompt += `- Tuyệt đối KHÔNG viết '\\\\text{...}' ở bên ngoài môi trường toán học (tức là trong các câu văn xuôi thông thường bên ngoài dấu $ hoặc $$). Chỉ sử dụng '\\\\text{}' khi nó nằm thực sự bên trong công thức toán học.\n`;
 
     const generateConfig = {
       responseMimeType: 'application/json',
