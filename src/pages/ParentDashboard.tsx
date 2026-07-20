@@ -284,9 +284,9 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
       return
     }
 
-    // Giới hạn 4MB để an toàn khi chuyển đổi base64 và gửi lên Vercel Serverless
-    if (file.size > 4 * 1024 * 1024) {
-      alert('⚠️ Tệp quá lớn! Vui lòng chọn tệp PDF ngắn (dưới 5 trang, ví dụ trang Mục lục) dung lượng dưới 4MB để tải lên.')
+    // Giới hạn tối đa 50MB cho tệp PDF
+    if (file.size > 50 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
       return
     }
 
@@ -327,6 +327,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
         }
 
         // 2. Gửi dữ liệu lên API trích xuất (Ưu tiên link URL nếu upload thành công, hoặc dùng base64 nếu upload lỗi)
+        if (!publicUrl && file.size > 4 * 1024 * 1024) {
+          throw new Error('Tải lên máy chủ lưu trữ Supabase Storage bị chặn/thất bại và tệp tin của bạn quá lớn (> 4MB) để có thể gửi trực tiếp sang AI. Vui lòng tạm thời tắt Brave Shields (nếu dùng Brave), tắt các trình chặn quảng cáo khác hoặc thử lại với file PDF ngắn dưới 4MB.')
+        }
+
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
