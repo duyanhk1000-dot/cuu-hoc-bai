@@ -28,6 +28,7 @@ export interface Lesson {
   infographic_url?: string;
   infographic_prompt?: string;
   infographic_content?: string;
+  mindmap?: string;
 }
 
 export interface Grade {

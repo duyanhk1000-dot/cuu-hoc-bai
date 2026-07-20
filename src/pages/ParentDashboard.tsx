@@ -76,7 +76,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
 
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null)
   const [reviewingLesson, setReviewingLesson] = useState<Lesson | null>(null)
-  const [reviewTab, setReviewTab] = useState<'lecture' | 'flashcards' | 'questions'>('lecture')
+  const [reviewTab, setReviewTab] = useState<'lecture' | 'flashcards' | 'questions' | 'mindmap'>('lecture')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [parentFeedback, setParentFeedback] = useState('')
   const [publishingLesson, setPublishingLesson] = useState(false)
@@ -457,6 +457,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           duration: data.duration_minutes || 45,
           questions: JSON.stringify(data.questions),
           flashcards: JSON.stringify(data.flashcards),
+          mindmap: data.mindmap || '',
           is_published: false,
           parent_feedback: feedback || ''
         };
@@ -487,8 +488,15 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
+    // Chuẩn hóa và tự động thêm xuống dòng trước các thẻ Markdown nếu bị dính chữ (defensive parsing)
+    const cleanedText = text
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(##+\s+)/g, '$1\n\n$2') // Thêm dòng trống trước ## hoặc ###
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\d+\.\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước 1. ** hoặc 2. **
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])([\*\-]\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước * ** hoặc - **
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\s+[\*\-]\s+)/g, '$1\n\n$2'); // Thêm dòng trống trước danh sách * hoặc -
+
     // Regex to split text by mermaid code blocks
-    const parts = text.split(/(```mermaid[\s\S]*?```)/g);
+    const parts = cleanedText.split(/(```mermaid[\s\S]*?```)/g);
 
     return parts.map((part, idx) => {
       if (part.startsWith('```mermaid') && part.endsWith('```')) {
@@ -1146,13 +1154,22 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                 1. Bài giảng lý thuyết
               </button>
               <button
+                onClick={() => setReviewTab('mindmap')}
+                className={`py-3 text-xs font-bold uppercase tracking-wider relative transition-all ${
+                  reviewTab === 'mindmap' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-350'
+                }`}
+              >
+                {reviewTab === 'mindmap' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full font-bold"></div>}
+                2. Sơ đồ tư duy
+              </button>
+              <button
                 onClick={() => setReviewTab('flashcards')}
                 className={`py-3 text-xs font-bold uppercase tracking-wider relative transition-all ${
                   reviewTab === 'flashcards' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-350'
                 }`}
               >
                 {reviewTab === 'flashcards' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full font-bold"></div>}
-                2. Bộ thẻ Flashcards
+                3. Bộ thẻ Flashcards
               </button>
               <button
                 onClick={() => setReviewTab('questions')}
@@ -1161,7 +1178,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                 }`}
               >
                 {reviewTab === 'questions' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full font-bold"></div>}
-                3. Đề bài tập (15 câu)
+                4. Đề bài tập (15 câu)
               </button>
             </div>
 
@@ -1169,12 +1186,32 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             <div className="p-6 overflow-y-auto flex-1 scrollbar-thin space-y-4">
               {/* Tab 1: Lecture Content */}
               {reviewTab === 'lecture' && (
-                <div className="prose prose-invert max-w-none">
+                <div className="prose prose-invert max-w-none text-left">
                   {renderFormattedText(reviewingLesson.lecture_content)}
                 </div>
               )}
 
-
+              {/* Tab: Mindmap */}
+              {reviewTab === 'mindmap' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950/20 rounded-xl border border-slate-800 flex justify-between items-center text-left">
+                    <div>
+                      <h4 className="font-bold text-white text-xs">Sơ đồ tư duy bài học</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Sơ đồ tóm tắt kiến thức của buổi học được trực quan hóa bằng Mermaid.js</p>
+                    </div>
+                  </div>
+                  {reviewingLesson.mindmap ? (
+                    <div className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100">
+                      {reviewingLesson.mindmap}
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/10">
+                      <Sparkles className="w-8 h-8 text-indigo-500/50 mx-auto" />
+                      <p className="text-xs text-slate-500">Môn học cũ chưa được tạo sơ đồ tư duy riêng biệt. Hãy nhấn "Yêu cầu soạn lại" để AI tạo mới.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Tab 2: Flashcards */}
               {reviewTab === 'flashcards' && (

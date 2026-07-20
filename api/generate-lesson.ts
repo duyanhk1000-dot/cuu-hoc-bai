@@ -84,10 +84,11 @@ export default async function handler(req: any, res: any) {
     
     prompt += `YÊU CẦU NỘI DUNG soạn thảo cần tuân thủ cấu trúc sau:\n`;
     prompt += `1. Tiêu đề buổi học (title): Rõ ràng, hấp dẫn.\n`;
-    prompt += `2. Nội dung bài giảng (lecture_content): Trình bày chi tiết, dễ hiểu bằng Markdown. Nếu có công thức toán học/khoa học hãy viết bằng LaTeX dạng $...$ hoặc $$...$$. ĐẶC BIỆT, hãy chèn thêm ít nhất 1 hoặc 2 sơ đồ, bản đồ tư duy (mindmap) hoặc lưu đồ quy trình bằng cú pháp Mermaid.js (bọc trong thẻ \`\`\`mermaid và kết thúc bằng \`\`\`) để trực quan hóa kiến thức giúp con dễ tiếp thu. LƯU Ý CÚ PHÁP MERMAID: Tất cả các nhãn của nút (node labels) chứa tiếng Việt, dấu cách hoặc ký tự đặc biệt BẮT BUỘC phải bọc trong dấu ngoặc kép. Ví dụ: A["Thế năng cực đại"] --> B["Động năng tăng"]. Tuyệt đối không để tiếng Việt tự do ngoài ngoặc kép của nút vì sẽ gây lỗi Syntax Error.\n`;
+    prompt += `2. Nội dung bài giảng (lecture_content): Trình bày chi tiết, dễ hiểu bằng Markdown. Hãy chia nội dung thành các phần rõ rệt, có tiêu đề phụ (dùng ## hoặc ###), và bạn BẮT BUỘC phải dùng hai ký tự xuống dòng liên tiếp (\\n\\n) giữa các đoạn văn để chúng phân tách rõ ràng trên giao diện, không bị dính chữ. Nếu có công thức toán học/khoa học hãy viết bằng LaTeX dạng $...$ hoặc $$...$$. Tuyệt đối KHÔNG chèn mã sơ đồ tư duy hay mã Mermaid vào phần này.\n`;
     prompt += `3. Thời gian làm bài tập (duration_minutes): Một số nguyên từ 30 đến 60 phút.\n`;
     prompt += `4. Danh sách đúng 15 thẻ Flashcard (flashcards): Các khái niệm quan trạng nhất của bài học, mỗi thẻ gồm mặt trước (câu hỏi/khái niệm nhanh) và mặt sau (giải thích ngắn gọn).\n`;
     prompt += `5. Đề bài tập kiểm tra đúng 15 câu hỏi (questions): Gồm 10 câu trắc nghiệm (multiple_choice) có 4 lựa chọn bắt đầu bằng 'A. ', 'B. ', 'C. ', 'D. ', và 5 câu tự luận (essay) có correct_answer là hướng dẫn giải chi tiết.\n`;
+    prompt += `6. Sơ đồ tư duy (mindmap): Viết mã nguồn vẽ sơ đồ tư duy bằng cú pháp Mermaid.js (dùng đồ thị graph TD hoặc cấu trúc mindmap tùy bài, không viết các thẻ nháy \`\`\`mermaid) để tóm tắt và trực quan hóa toàn bộ kiến thức của bài học này giúp học sinh dễ ghi nhớ. LƯU Ý QUAN TRỌNG: Tất cả các nhãn của nút (node labels) chứa tiếng Việt, dấu cách hoặc ký tự đặc biệt BẮT BUỘC phải bọc trong dấu ngoặc kép (ví dụ: A["Tên bài học"] --> B["Khái niệm chính"]). Không được viết tiếng Việt ngoài dấu ngoặc kép của nhãn nút để tránh lỗi vẽ sơ đồ.\n`;
 
     const generateConfig = {
       responseMimeType: 'application/json',
@@ -96,6 +97,7 @@ export default async function handler(req: any, res: any) {
         properties: {
           title: { type: 'string' },
           lecture_content: { type: 'string' },
+          mindmap: { type: 'string' },
           duration_minutes: { type: 'integer' },
           flashcards: {
             type: 'array',
@@ -126,7 +128,7 @@ export default async function handler(req: any, res: any) {
             }
           }
         },
-        required: ['title', 'lecture_content', 'duration_minutes', 'flashcards', 'questions']
+        required: ['title', 'lecture_content', 'mindmap', 'duration_minutes', 'flashcards', 'questions']
       }
     };
 

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS Lessons (
     infographic_url VARCHAR(500),
     infographic_prompt TEXT,
     infographic_content TEXT,
+    mindmap TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(subject, lesson_number)
 );

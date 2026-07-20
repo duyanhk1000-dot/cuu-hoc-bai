@@ -57,7 +57,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
 
   // Active workspace (when student is study/taking test)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
-  const [workspaceTab, setWorkspaceTab] = useState<'lecture' | 'flashcards' | 'test' | 'result' | 'pdf'>('lecture')
+  const [workspaceTab, setWorkspaceTab] = useState<'lecture' | 'flashcards' | 'test' | 'result' | 'pdf' | 'mindmap'>('lecture')
   
   // Flashcard states
   const [flashcards, setFlashcards] = useState<any[]>([])
@@ -293,8 +293,15 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
+    // Chuẩn hóa và tự động thêm xuống dòng trước các thẻ Markdown nếu bị dính chữ (defensive parsing)
+    const cleanedText = text
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(##+\s+)/g, '$1\n\n$2') // Thêm dòng trống trước ## hoặc ###
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\d+\.\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước 1. ** hoặc 2. **
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])([\*\-]\s+\*\*)/g, '$1\n\n$2') // Thêm dòng trống trước * ** hoặc - **
+      .replace(/([a-zA-Z0-9.\"\!\?\)\_])(\s+[\*\-]\s+)/g, '$1\n\n$2'); // Thêm dòng trống trước danh sách * hoặc -
+
     // Regex to split text by mermaid code blocks
-    const parts = text.split(/(```mermaid[\s\S]*?```)/g);
+    const parts = cleanedText.split(/(```mermaid[\s\S]*?```)/g);
 
     return parts.map((part, idx) => {
       if (part.startsWith('```mermaid') && part.endsWith('```')) {
@@ -463,6 +470,16 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                     Lý thuyết bài giảng
                   </button>
                   <button
+                    onClick={() => setWorkspaceTab('mindmap')}
+                    disabled={isTimerRunning}
+                    className={`pb-3 text-sm font-semibold transition-all relative disabled:opacity-40 ${
+                      workspaceTab === 'mindmap' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {workspaceTab === 'mindmap' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                    Sơ đồ tư duy
+                  </button>
+                  <button
                     onClick={() => setWorkspaceTab('flashcards')}
                     disabled={isTimerRunning}
                     className={`pb-3 text-sm font-semibold transition-all relative disabled:opacity-40 ${
@@ -526,6 +543,31 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                   </div>
                 )}
               </div>
+
+              {/* Tab: Mindmap */}
+              {workspaceTab === 'mindmap' && (
+                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl space-y-4 text-left">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Sơ đồ tư duy bài học</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Học nhanh kiến thức qua sơ đồ trực quan</p>
+                    </div>
+                  </div>
+                  {activeLesson?.mindmap ? (
+                    <div className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100">
+                      {activeLesson.mindmap}
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/20">
+                      <Sparkles className="w-10 h-10 text-indigo-500/50 mx-auto" />
+                      <div>
+                        <h4 className="font-bold text-slate-300 text-sm">Chưa có sơ đồ tư duy cho bài này</h4>
+                        <p className="text-slate-500 text-xs mt-1">Bài giảng này được tạo trước đây và chưa tích hợp sơ đồ tư duy riêng biệt.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Tab: PDF Textbook Document */}
               {workspaceTab === 'pdf' && (
