@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
-import { normalizeText, parseMathAndText as customParseMathAndText } from '../utils/mathNormalizer'
+import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 
 const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
   const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
@@ -648,7 +648,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                           <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl">
                             <Sparkles className="w-6 h-6 text-indigo-400 mb-4 animate-pulse" />
                             <h3 className="text-lg font-bold text-slate-100 leading-relaxed">
-                              {flashcards[currentFlashcardIdx]?.front}
+                              <MathRenderer content={flashcards[currentFlashcardIdx]?.front || ''} />
                             </h3>
                             <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-6">Nhấp để xem mặt sau</span>
                           </div>
@@ -657,7 +657,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                           <div className="absolute inset-0 w-full h-full rounded-2xl bg-indigo-950/80 border border-indigo-500/35 glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl rotate-y-180">
                             <CheckCircle className="w-6 h-6 text-emerald-400 mb-4" />
                             <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                              {flashcards[currentFlashcardIdx]?.back}
+                              <MathRenderer content={flashcards[currentFlashcardIdx]?.back || ''} />
                             </p>
                             <span className="text-[10px] text-indigo-400 uppercase tracking-widest mt-6">Nhấp để xem câu hỏi</span>
                           </div>
@@ -731,7 +731,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                         {questions.map((q, idx) => (
                           <div key={idx} className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
                             <span className="text-xs font-bold text-indigo-400 block">Câu {q.question_number}: {q.question_type === 'multiple_choice' ? 'Trắc nghiệm' : 'Tự luận'}</span>
-                            <p className="text-sm font-semibold text-slate-100">{q.prompt}</p>
+                            <p className="text-sm font-semibold text-slate-100"><MathRenderer content={q.prompt} /></p>
                             
                             {q.question_type === 'multiple_choice' ? (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -748,7 +748,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                                           : 'bg-slate-950/40 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                                       }`}
                                     >
-                                      {opt}
+                                      <MathRenderer content={opt} />
                                     </button>
                                   )
                                 })}
@@ -806,7 +806,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                   <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nhận xét tổng quát của Giáo viên</span>
                     <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                      {testResult.overall_feedback}
+                      <MathRenderer content={testResult.overall_feedback} />
                     </p>
                   </div>
 
@@ -835,10 +835,10 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
                         </div>
                         <div className="mt-3 space-y-2 text-xs">
                           <p className="text-slate-400">
-                            👉 **Bài làm của bạn:** <span className="text-slate-100 font-medium">{q.student_answer || "(Chưa trả lời)"}</span>
+                            👉 **Bài làm của bạn:** <span className="text-slate-100 font-medium"><MathRenderer content={q.student_answer || "(Chưa trả lời)"} /></span>
                           </p>
                           <div className="p-3 bg-slate-950/60 rounded-lg text-slate-300 leading-relaxed">
-                            <strong>Lời giải & Nhận xét của Giáo viên:</strong> {q.correct_explanation}
+                            <strong>Lời giải & Nhận xét của Giáo viên:</strong> <MathRenderer content={q.correct_explanation} />
                           </div>
                         </div>
                       </div>

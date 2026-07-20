@@ -273,3 +273,15 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
     return <span>{textStr}</span>;
   }
 };
+
+/**
+ * 9. React Component MathRenderer giúp render và cache biểu thức toán học mọi nơi trong ứng dụng
+ */
+export const MathRenderer: React.FC<{ content: string; className?: string }> = React.memo(({ content, className }) => {
+  if (!content) return null;
+  const normalized = normalizeText(content);
+  const hasDisplayMath = normalized.includes('$$');
+  const Component = hasDisplayMath ? 'div' : 'span';
+  return <Component className={className}>{parseMathAndText(normalized)}</Component>;
+});
+

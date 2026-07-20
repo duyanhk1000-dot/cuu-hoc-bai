@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
-import { normalizeText, parseMathAndText as customParseMathAndText } from '../utils/mathNormalizer'
+import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 
 const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
   const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
@@ -1223,11 +1223,11 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                           <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block">Thẻ số {idx + 1}</span>
                           <div>
                             <span className="text-xs text-slate-400 font-semibold block">Mặt trước:</span>
-                            <p className="text-sm text-slate-200 mt-0.5 font-medium">{item.front}</p>
+                            <p className="text-sm text-slate-200 mt-0.5 font-medium"><MathRenderer content={item.front} /></p>
                           </div>
                           <div className="border-t border-slate-850 pt-2 mt-2">
                             <span className="text-xs text-slate-400 font-semibold block">Mặt sau (Giải nghĩa):</span>
-                            <p className="text-sm text-emerald-300 mt-0.5">{item.back}</p>
+                            <p className="text-sm text-emerald-300 mt-0.5"><MathRenderer content={item.back} /></p>
                           </div>
                         </div>
                       ));
@@ -1252,20 +1252,20 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                               Câu số {quest.question_number} - {quest.question_type === 'multiple_choice' ? 'Trắc nghiệm' : 'Tự luận'}
                             </span>
                           </div>
-                          <p className="text-sm font-semibold text-slate-200 leading-relaxed">{quest.prompt}</p>
+                          <p className="text-sm font-semibold text-slate-200 leading-relaxed"><MathRenderer content={quest.prompt} /></p>
                           
                           {quest.question_type === 'multiple_choice' ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                               {quest.options?.map((opt: string) => (
                                 <div key={opt} className={`px-4 py-2.5 rounded-lg border text-xs bg-slate-950/65 ${opt.startsWith(quest.correct_answer) ? 'border-emerald-500/35 text-emerald-300' : 'border-slate-850 text-slate-400'}`}>
-                                  {opt}
+                                  <MathRenderer content={opt} />
                                 </div>
                               ))}
                             </div>
                           ) : (
                             <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-xs text-slate-300 mt-2">
                               <strong className="text-emerald-400 block mb-1">Đáp án gợi ý / Lời giải mẫu:</strong>
-                              {quest.correct_answer}
+                              <MathRenderer content={quest.correct_answer} />
                             </div>
                           )}
                         </div>
