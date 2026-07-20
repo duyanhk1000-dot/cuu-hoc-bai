@@ -71,6 +71,8 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [extractingPdf, setExtractingPdf] = useState(false)
   const [pdfFileName, setPdfFileName] = useState('')
   const [uploadedPdfUrl, setUploadedPdfUrl] = useState('')
+  const [activeCreateLessonNum, setActiveCreateLessonNum] = useState<number | null>(null)
+  const [lessonReferenceText, setLessonReferenceText] = useState('')
 
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null)
   const [reviewingLesson, setReviewingLesson] = useState<Lesson | null>(null)
@@ -459,7 +461,8 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           totalLessons: syllabus.total_lessons,
           textbookContent: syllabus.textbook_content || '',
           apiKeys: apiKeys,
-          parentFeedback: feedback
+          parentFeedback: feedback,
+          lessonReferenceText: lessonReferenceText.trim()
         })
       })
       const data = await response.json()
@@ -476,6 +479,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           parent_feedback: feedback || ''
         };
         await dataService.saveLesson(lessonData)
+        setLessonReferenceText('')
         await loadSyllabusAndLessons(selectedSubject)
         
         // Update reviewing lesson modal state if it's currently open
@@ -918,7 +922,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleGenerateLesson(lessonNum)}
+                              onClick={() => {
+                                setActiveCreateLessonNum(lessonNum);
+                                setLessonReferenceText('');
+                              }}
                               disabled={generatingLesson}
                               className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all disabled:opacity-50"
                             >
@@ -1488,6 +1495,63 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           </div>
         </div>
 
+      {/* Create Lesson Reference Modal */}
+      {activeCreateLessonNum !== null && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white">Soạn bài giảng Buổi {activeCreateLessonNum}</h3>
+              </div>
+              <button
+                onClick={() => setActiveCreateLessonNum(null)}
+                className="text-slate-400 hover:text-slate-200 text-xs font-bold bg-slate-800 hover:bg-slate-700/60 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-slate-350 font-medium block">Nội dung sách giáo khoa của bài này (Không bắt buộc)</label>
+                  <span className="text-[10px] text-indigo-400">Tối đa 15,000 ký tự</span>
+                </div>
+                <textarea
+                  placeholder="Hãy sao chép và dán phần chữ của bài này trong sách giáo khoa vào đây để AI soạn giáo án, flashcard và bộ đề kiểm tra bám sát chính xác 100%..."
+                  rows={8}
+                  value={lessonReferenceText}
+                  onChange={(e) => setLessonReferenceText(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 transition-all text-xs leading-relaxed resize-none"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  💡 <strong>Mẹo hay</strong>: Bạn chỉ cần mở tệp PDF sách giáo khoa, sao chép (copy) phần chữ của bài học này và dán (paste) vào đây. AI sẽ dựa trực tiếp vào nội dung đó để soạn bài giảng đầy đủ cho con.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end gap-2.5">
+              <button
+                onClick={() => setActiveCreateLessonNum(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-350 text-xs font-bold rounded-xl transition-all"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={() => {
+                  const num = activeCreateLessonNum;
+                  setActiveCreateLessonNum(null);
+                  handleGenerateLesson(num);
+                }}
+                className="px-5 py-2 bg-indigo-650 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-600/10"
+              >
+                Bắt đầu soạn bằng AI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { subject, syllabus, lessonNumber, totalLessons = 30, textbookContent, apiKey: clientApiKey, apiKeys: clientApiKeys, parentFeedback } = req.body || {};
+  const { subject, syllabus, lessonNumber, totalLessons = 30, textbookContent, apiKey: clientApiKey, apiKeys: clientApiKeys, parentFeedback, lessonReferenceText } = req.body || {};
   if (!subject || !syllabus || !lessonNumber) {
     return res.status(400).json({ error: 'Subject, syllabus, and lessonNumber are required' });
   }
@@ -67,8 +67,15 @@ export default async function handler(req: any, res: any) {
 
   try {
     let prompt = `Bạn là một gia sư AI thân thiện và chuyên nghiệp. Hãy soạn thảo chi tiết nội dung học tập cho Buổi số ${lessonNumber} trong tổng số ${totalLessons} buổi học của môn "${subject}".\n\n`;
+    
+    if (lessonReferenceText) {
+      prompt += `⚠️ ĐẶC BIỆT QUAN TRỌNG - TÀI LIỆU THAM KHẢO CHÍNH XÁC CỦA BÀI HỌC NÀY:\n`;
+      prompt += `Bạn BẮT BUỘC phải soạn nội dung bài giảng (lecture_content), danh sách 15 flashcards và bộ 15 câu hỏi bài tập (questions) dựa trên đúng nội dung chữ, kiến thức, ví dụ minh họa, định nghĩa và công thức toán học/khoa học được ghi trong văn bản dưới đây. Hãy bám sát văn bản này để học sinh học chính xác theo bài học trong sách giáo khoa của mình:\n`;
+      prompt += `---\n${lessonReferenceText}\n---\n\n`;
+    }
+    
     prompt += `Lộ trình học tập tổng thể (Syllabus):\n---\n${syllabus}\n---\n\n`;
-    if (textbookContent) {
+    if (textbookContent && !lessonReferenceText) {
       prompt += `Nội dung tài liệu/sách giáo khoa bổ trợ:\n---\n${textbookContent.substring(0, 30000)}\n---\n\n`;
     }
     if (parentFeedback) {
