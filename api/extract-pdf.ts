@@ -50,6 +50,11 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: 'Empty file URL or file data' })
   }
 
+  // AI Security: Giới hạn kích thước file dữ liệu base64 thô truyền lên để tránh quá tải
+  if (fileData && fileData.length > 8 * 1024 * 1024) {
+    return res.status(400).json({ error: 'Kích thước tệp tin của bạn vượt quá giới hạn cho phép (tối đa 6MB).' })
+  }
+
   const authHeader = req.headers.authorization
   const keys = await getDecryptedApiKeys(authHeader)
 
@@ -79,6 +84,13 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Không tìm thấy dữ liệu tệp PDF để xử lý' })
     }
 
+    // 1. Phân tách System Instructions
+    const systemInstruction = `Bạn là một trợ lý AI chuyên nghiệp chuyên trích xuất tài liệu học tập. Nhiệm vụ của bạn là đọc kỹ tài liệu PDF sách giáo khoa hoặc chương trình học được cung cấp, chuyển đổi và tóm tắt toàn bộ kiến thức cốt lõi sang ngôn ngữ Markdown (.md) sạch sẽ.
+
+Yêu cầu đầu ra:
+- Phải viết hoàn toàn bằng tiếng Việt.
+- Liệt kê đầy đủ danh sách các chương, các bài học và nội dung tóm tắt chi tiết của từng bài học để làm căn cứ soạn giáo trình.`
+
     let responseText = ''
     let success = false
     let lastError: any = null
@@ -96,8 +108,11 @@ export default async function handler(req: any, res: any) {
                 data: base64Data
               }
             },
-            'Bạn là một trợ lý AI chuyên nghiệp. Hãy đọc tài liệu PDF này (sách giáo khoa/chương trình học) và trích xuất/chuyển đổi toàn bộ nội dung kiến thức cốt lõi, danh sách các chương, các bài học và tóm tắt nội dung chi tiết của từng bài học sang định dạng Markdown (.md) sạch sẽ, rõ ràng, dễ đọc để làm căn cứ soạn giáo trình dạy học. Hãy viết toàn bộ bằng tiếng Việt.'
-          ]
+            'Hãy trích xuất và chuyển đổi toàn bộ kiến thức sách giáo khoa/chương trình học trong tài liệu PDF này sang định dạng Markdown.'
+          ],
+          config: {
+            systemInstruction
+          }
         })
         responseText = response.text || ''
         success = true
@@ -110,11 +125,12 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!success) {
-      return res.status(503).json({ error: `Tất cả ${keys.length} API keys đều quá tải hoặc không khả dụng. Lỗi cuối cùng: ${lastError?.message || 'Unavailable'}` })
+      return res.status(503).json({ error: 'Dịch vụ trích xuất PDF bằng AI đang quá tải. Vui lòng thử lại sau.' })
     }
 
     return res.status(200).json({ text: responseText })
   } catch (error: any) {
-    return res.status(500).json({ error: error.message || 'Error processing PDF with Gemini' })
+    console.error('[ExtractPdf Error]:', error)
+    return res.status(500).json({ error: 'Đã xảy ra lỗi hệ thống khi trích xuất tài liệu PDF.' })
   }
 }
