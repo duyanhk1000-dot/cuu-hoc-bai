@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText } from 'lucide-react'
-import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
+import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
 import { supabase } from '../supabaseClient'
@@ -88,6 +88,22 @@ export default function StudentDashboard() {
   // KaTeX load state
   const [kaTeXLoaded, setKaTeXLoaded] = useState(false)
 
+  // Virtual Pet & Shop States
+  const [studentPet, setStudentPet] = useState<StudentPet | null>(null)
+  const [isPetModalOpen, setIsPetModalOpen] = useState(false)
+  const [petShopTab, setPetShopTab] = useState<'interact' | 'shop'>('interact')
+  const [ownedEvolutionItems, setOwnedEvolutionItems] = useState<string[]>(() => {
+    return JSON.parse(localStorage.getItem('student_pet_evolution_items') || '[]')
+  })
+  const [petEvents, setPetEvents] = useState<PetEvent[]>([])
+
+  // Victory screen animation states
+  const [showVictoryPopup, setShowVictoryPopup] = useState(false)
+  const [victoryCoinsEarned, setVictoryCoinsEarned] = useState(0)
+  const [victoryExpEarned, setVictoryExpEarned] = useState(0)
+  const [victoryTitle, setVictoryTitle] = useState('')
+  const [isLevelUp, setIsLevelUp] = useState(false)
+
   // Custom Hooks
   const { messages, newMsg, setNewMsg, isChatOpen, setIsChatOpen, sendMessage } = useChat()
   const { timeLeft, isTimerRunning, startTimer, stopTimer, resetTimer, formatTime } = useTimer(
@@ -136,10 +152,63 @@ export default function StudentDashboard() {
     return <p className="text-slate-400 text-center py-12">Vui lòng đăng nhập!</p>
   }
 
+  const loadPetData = async () => {
+    try {
+      const pet = await dataService.getStudentPet('hocsinh')
+      setStudentPet(pet)
+      const evs = await dataService.getPetEvents('hocsinh')
+      setPetEvents(evs)
+    } catch (err) {
+      console.error("Failed to load student pet data:", err)
+    }
+  }
+
+  const playSound = (type: 'squeak' | 'coin' | 'level_up') => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      if (type === 'squeak') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(1600, now + 0.15);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'coin') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.setValueAtTime(1318.51, now + 0.08);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } else if (type === 'level_up') {
+        osc.type = 'sawtooth';
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
+        freqs.forEach((freq, idx) => {
+          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+        });
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+    } catch (err) {
+      console.warn("AudioContext block:", err);
+    }
+  }
+
   // Load initial data
   useEffect(() => {
     loadSubjects()
     loadGrades()
+    loadPetData()
   }, [])
 
   // Load syllabus and lessons when subject changes
@@ -169,7 +238,119 @@ export default function StudentDashboard() {
     }
     loadKaTeX()
   }, [])
+  const handleFeedPet = async (foodType: 'sunflower' | 'milk' | 'cheese') => {
+    if (!studentPet) return
+    let price = 10
+    let hpRestore = 15
+    let foodName = 'Hạt hướng dương'
+    
+    if (foodType === 'milk') {
+      price = 15
+      hpRestore = 25
+      foodName = 'Bình sữa'
+    } else if (foodType === 'cheese') {
+      price = 25
+      hpRestore = 40
+      foodName = 'Bánh phô mai nhỏ'
+    }
 
+    if (studentPet.coins < price) {
+      alert("Không đủ xu để mua thức ăn!")
+      return
+    }
+
+    const nextCoins = studentPet.coins - price
+    const nextHp = Math.min(100, studentPet.current_hp + hpRestore)
+    
+    playSound('coin')
+    const updated = await dataService.updateStudentPet('hocsinh', {
+      coins: nextCoins,
+      current_hp: nextHp
+    })
+    setStudentPet(updated)
+    alert(`Đã cho thú cưng ăn ${foodName}! Hồi phục +${hpRestore} HP.`)
+  }
+
+  const handleBuyEvolutionItem = async (itemName: string, price: number) => {
+    if (!studentPet) return
+    if (ownedEvolutionItems.includes(itemName)) {
+      alert("Bạn đã sở hữu vật phẩm này rồi!")
+      return
+    }
+    if (studentPet.coins < price) {
+      alert("Không đủ xu để mua vật phẩm này!")
+      return
+    }
+
+    const nextCoins = studentPet.coins - price
+    const nextItems = [...ownedEvolutionItems, itemName]
+    
+    playSound('coin')
+    const updated = await dataService.updateStudentPet('hocsinh', { coins: nextCoins })
+    setStudentPet(updated)
+    setOwnedEvolutionItems(nextItems)
+    localStorage.setItem('student_pet_evolution_items', JSON.stringify(nextItems))
+    alert(`Mua thành công ${itemName}!`)
+  }
+
+  const getRequiredItemForLevel = (level: number): { name: string; price: number; img: string } | null => {
+    switch (level) {
+      case 1: return { name: 'Phô mai vàng', price: 80, img: 'gold_cheese' }
+      case 2: return { name: 'Nơ xanh lịch lãm', price: 120, img: 'blue_bow' }
+      case 3: return { name: 'Mũ thám hiểm', price: 180, img: 'explorer_hat' }
+      case 4: return { name: 'Kính trí thức', price: 240, img: 'glasses' }
+      case 5: return { name: 'Mũ phù thủy', price: 300, img: 'wizard_hat' }
+      case 6: return { name: 'Mũ phi công', price: 380, img: 'aviator_goggles' }
+      case 7: return { name: 'Áo choàng hoàng gia', price: 480, img: 'royal_cloak' }
+      case 8: return { name: 'Kiếm thánh', price: 600, img: 'holy_sword' }
+      case 9: return { name: 'Trượng quyền năng', price: 800, img: 'scepter_of_power' }
+      default: return null
+    }
+  }
+
+  const handleEvolvePet = async () => {
+    if (!studentPet) return
+    
+    const neededExp = (studentPet.current_level * 200) + 100
+    if (studentPet.current_exp < neededExp) {
+      alert("Chưa đủ điểm kinh nghiệm (EXP) để thăng cấp!")
+      return
+    }
+    if (studentPet.current_hp < 95) {
+      alert("Thú cưng cần đạt từ 95 HP sức khỏe trở lên để tiến hóa!")
+      return
+    }
+
+    const req = getRequiredItemForLevel(studentPet.current_level)
+    if (req && !ownedEvolutionItems.includes(req.name)) {
+      alert(`Bạn cần mua "${req.name}" trong Cửa hàng để tiến hóa thú cưng!`)
+      return
+    }
+
+    const nextLevel = studentPet.current_level + 1
+    const nextExp = studentPet.current_exp - neededExp
+    
+    let nextItems = ownedEvolutionItems
+    if (req) {
+      nextItems = ownedEvolutionItems.filter(item => item !== req.name)
+      setOwnedEvolutionItems(nextItems)
+      localStorage.setItem('student_pet_evolution_items', JSON.stringify(nextItems))
+    }
+
+    playSound('level_up')
+    const updated = await dataService.updateStudentPet('hocsinh', {
+      current_level: nextLevel,
+      current_exp: nextExp,
+      current_hp: 100
+    })
+    setStudentPet(updated)
+    
+    setIsLevelUp(true)
+    setVictoryTitle("TIẾN HÓA THÀNH CÔNG!")
+    setVictoryCoinsEarned(0)
+    setVictoryExpEarned(0)
+    setShowVictoryPopup(true)
+  }
   // Trigger Mermaid diagram rendering
   useEffect(() => {
     if (workspaceTab !== 'mindmap') return
@@ -320,7 +501,85 @@ export default function StudentDashboard() {
       const data = await response.json()
       if (response.ok && data.total_score !== undefined) {
         setTestResult(data)
-        // Save score to DB
+        
+        // Calculate pet rewards
+        let coinsEarned = 0
+        let expEarned = 0
+        let isFirstTime = true
+        let oldScore = -1
+
+        const prevGrades = grades.filter(g => g.student_username === profile.username)
+        if (prevGrades.length > 0) {
+          isFirstTime = false
+          oldScore = Math.max(...prevGrades.map(g => g.score))
+        }
+
+        const newScore = data.total_score
+        
+        const getMilestoneReward = (score: number) => {
+          if (score >= 10) return { coins: 30, exp: 50, title: 'ĐIỂM TUYỆT ĐỐI!' }
+          if (score >= 8) return { coins: 20, exp: 30, title: 'ĐIỂM GIỎI XUẤT SẮC!' }
+          if (score >= 5) return { coins: 10, exp: 15, title: 'ĐẠT YÊU CẦU!' }
+          return { coins: 0, exp: 5, title: 'CẦN CỐ GẮNG HƠN!' }
+        }
+
+        const newMilestone = getMilestoneReward(newScore)
+
+        if (isFirstTime) {
+          coinsEarned = newMilestone.coins
+          expEarned = newMilestone.exp
+        } else {
+          const oldMilestone = getMilestoneReward(oldScore)
+          
+          if (newScore > oldScore && newMilestone.coins > oldMilestone.coins) {
+            coinsEarned = newMilestone.coins - oldMilestone.coins
+            expEarned = newMilestone.exp - oldMilestone.exp
+          } else {
+            coinsEarned = 0
+            expEarned = 5
+          }
+        }
+
+        if (studentPet) {
+          let nextExp = studentPet.current_exp + expEarned
+          let nextLevel = studentPet.current_level
+          let didLevelUp = false
+
+          while (true) {
+            const expNeeded = (nextLevel * 200) + 100
+            if (nextExp >= expNeeded && nextLevel < 10) {
+              nextExp -= expNeeded
+              nextLevel += 1
+              didLevelUp = true
+            } else {
+              break
+            }
+          }
+
+          const nextCoins = studentPet.coins + coinsEarned
+          const nextHp = Math.min(100, studentPet.current_hp + 10)
+
+          const updatedPet = await dataService.updateStudentPet('hocsinh', {
+            coins: nextCoins,
+            current_exp: nextExp,
+            current_level: nextLevel,
+            current_hp: nextHp
+          })
+          setStudentPet(updatedPet)
+
+          setVictoryTitle(newMilestone.title)
+          setVictoryCoinsEarned(coinsEarned)
+          setVictoryExpEarned(expEarned)
+          setIsLevelUp(didLevelUp)
+          setShowVictoryPopup(true)
+
+          if (didLevelUp) {
+            playSound('level_up')
+          } else if (coinsEarned > 0) {
+            playSound('coin')
+          }
+        }
+
         await dataService.saveGrade({
           student_username: profile.username,
           lesson_id: activeLesson.id!,
@@ -417,6 +676,59 @@ export default function StudentDashboard() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Virtual Pet Widget */}
+          {studentPet && (
+            <div 
+              onClick={() => {
+                playSound('squeak');
+                setIsPetModalOpen(true);
+              }}
+              className="flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-95 select-none h-10 group"
+              title="Nhấp để xem & chăm sóc thú cưng!"
+            >
+              {/* Bars */}
+              <div className="hidden sm:flex flex-col gap-0.5 min-w-[70px] text-left">
+                {/* HP */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px]">❤️</span>
+                  <div className="flex-1 bg-slate-950 h-1 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${studentPet.current_hp < 30 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} 
+                      style={{ width: `${studentPet.current_hp}%` }}
+                    ></div>
+                  </div>
+                </div>
+                {/* EXP */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px]">⭐</span>
+                  <div className="flex-1 bg-slate-950 h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-amber-500" 
+                      style={{ width: `${(studentPet.current_exp / ((studentPet.current_level * 200) + 100)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Avatar */}
+              <div className="w-7 h-7 rounded-full bg-slate-950 flex items-center justify-center p-0.5 border border-indigo-500/25 group-hover:scale-105 transition-all overflow-hidden">
+                <img
+                  src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
+                  alt="Pet"
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                  }}
+                />
+              </div>
+
+              {/* Coins */}
+              <div className="flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                <span>🪙</span>
+                <span>{studentPet.coins}</span>
+              </div>
+            </div>
+          )}
           {/* Nút thay đổi theme */}
           <button
             onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
@@ -1113,6 +1425,357 @@ export default function StudentDashboard() {
         username={profile.username}
         placeholder="Nhắn tin cho bố mẹ..."
       />
+
+      {/* Virtual Pet Interaction & Shop Modal */}
+      {isPetModalOpen && studentPet && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/20">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🐹</span>
+                <div className="text-left">
+                  <h3 className="text-base font-bold text-white">Chăm sóc & Nâng cấp Thú Cưng</h3>
+                  <p className="text-[11px] text-slate-400">Hãy cho thú ăn và sắm đồ để tiến hóa thú nuôi nhé!</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsPetModalOpen(false)}
+                className="text-slate-400 hover:text-slate-200 p-1.5 hover:bg-slate-800 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Pet Status Header Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-slate-950/30 p-5 rounded-2xl border border-slate-800/80">
+                {/* Pet Image Frame */}
+                <div className="relative w-36 h-36 mx-auto bg-slate-900/60 rounded-full border border-indigo-500/20 flex items-center justify-center overflow-hidden shadow-inner p-3">
+                  <img
+                    src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
+                    alt="Pet Avatar"
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                    }}
+                  />
+                </div>
+
+                {/* Pet stats details */}
+                <div className="space-y-4">
+                  <div className="text-left">
+                    <h4 className="text-lg font-bold text-indigo-300">{studentPet.pet_name}</h4>
+                    <p className="text-xs text-slate-400">Cấp độ hiện tại: <span className="font-extrabold text-slate-200">Level {studentPet.current_level}</span></p>
+                  </div>
+
+                  {/* HP & EXP sliders */}
+                  <div className="space-y-2 text-left">
+                    {/* HP bar */}
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[11px] font-bold">
+                        <span className="text-slate-400">❤️ Sức khỏe (HP):</span>
+                        <span className={studentPet.current_hp < 30 ? 'text-rose-455 font-black animate-pulse' : 'text-emerald-400'}>
+                          {studentPet.current_hp}/100
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${studentPet.current_hp < 30 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}
+                          style={{ width: `${studentPet.current_hp}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* EXP bar */}
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[11px] font-bold">
+                        <span className="text-slate-400">⭐ Kinh nghiệm:</span>
+                        <span className="text-indigo-400">
+                          {studentPet.current_exp}/{(studentPet.current_level * 200) + 100} EXP
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500"
+                          style={{ width: `${(studentPet.current_exp / ((studentPet.current_level * 200) + 100)) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Wallet indicator */}
+                  <div className="flex items-center justify-between p-2.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                    <span className="text-xs text-slate-400">Số xu hiện có:</span>
+                    <span className="text-sm font-bold text-amber-300">🪙 {studentPet.coins} xu</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs Switcher */}
+              <div className="flex border-b border-slate-800/80 pb-0.5 gap-6">
+                <button
+                  onClick={() => setPetShopTab('interact')}
+                  className={`pb-2.5 text-sm font-semibold transition-all relative ${
+                    petShopTab === 'interact' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {petShopTab === 'interact' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                  Tương tác & Tiến hóa
+                </button>
+                <button
+                  onClick={() => setPetShopTab('shop')}
+                  className={`pb-2.5 text-sm font-semibold transition-all relative ${
+                    petShopTab === 'shop' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {petShopTab === 'shop' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                  Cửa hàng Thú Cưng
+                </button>
+              </div>
+
+              {/* Sub-tab 1: Interaction & Evolution */}
+              {petShopTab === 'interact' && (
+                <div className="space-y-4">
+                  {/* Feed section */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-left">Cho thú ăn phục hồi sức khỏe:</h4>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* Sunflower item */}
+                      <button
+                        onClick={() => handleFeedPet('sunflower')}
+                        className="p-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl text-center transition-all flex flex-col items-center justify-between gap-1 active:scale-95 group"
+                      >
+                        <span className="text-2xl mt-1">🌻</span>
+                        <div className="text-xs font-bold text-slate-200 mt-1">Hạt hướng dương</div>
+                        <div className="text-[10px] text-emerald-400 font-semibold">+15 HP</div>
+                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-extrabold mt-1 group-hover:bg-amber-500/20">
+                          🪙 10 xu
+                        </span>
+                      </button>
+
+                      {/* Milk item */}
+                      <button
+                        onClick={() => handleFeedPet('milk')}
+                        className="p-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl text-center transition-all flex flex-col items-center justify-between gap-1 active:scale-95 group"
+                      >
+                        <span className="text-2xl mt-1">🍼</span>
+                        <div className="text-xs font-bold text-slate-200 mt-1">Bình sữa sơ sinh</div>
+                        <div className="text-[10px] text-emerald-400 font-semibold">+25 HP</div>
+                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-extrabold mt-1 group-hover:bg-amber-500/20">
+                          🪙 15 xu
+                        </span>
+                      </button>
+
+                      {/* Cheese item */}
+                      <button
+                        onClick={() => handleFeedPet('cheese')}
+                        className="p-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl text-center transition-all flex flex-col items-center justify-between gap-1 active:scale-95 group"
+                      >
+                        <span className="text-2xl mt-1">🧀</span>
+                        <div className="text-xs font-bold text-slate-200 mt-1">Bánh phô mai nhỏ</div>
+                        <div className="text-[10px] text-emerald-400 font-semibold">+40 HP</div>
+                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-extrabold mt-1 group-hover:bg-amber-500/20">
+                          🪙 25 xu
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Level Evolution Section */}
+                  <div className="p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl mt-2 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="space-y-1 text-left">
+                      <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider block">Kích hoạt tiến hóa</span>
+                      <p className="text-xs text-slate-300 font-medium">
+                        {studentPet.current_level >= 10 ? (
+                          "Thú cưng của bạn đã đạt cấp tiến hóa cao nhất! 🎉"
+                        ) : (
+                          <>
+                            Yêu cầu: <strong className="text-indigo-200">HP &gt;= 95</strong> & sở hữu vật phẩm{' '}
+                            <strong className="text-indigo-200">
+                              "{getRequiredItemForLevel(studentPet.current_level)?.name || 'Không cần'}"
+                            </strong>.
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    {studentPet.current_level < 10 && (
+                      <button
+                        onClick={handleEvolvePet}
+                        className="px-5 py-2.5 bg-gradient-to-tr from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                      >
+                        Tiến hóa cấp {studentPet.current_level + 1}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 2: Shop & Custom upgrades */}
+              {petShopTab === 'shop' && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left side: Item list */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-left">Đồ vật Tiến hóa / Trang phục:</h4>
+                      
+                      <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                        {Array.from({ length: 9 }).map((_, idx) => {
+                          const lv = idx + 1
+                          const req = getRequiredItemForLevel(lv)
+                          if (!req) return null
+
+                          const isOwned = ownedEvolutionItems.includes(req.name)
+
+                          return (
+                            <div
+                              key={lv}
+                              className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl flex items-center justify-between gap-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-center p-1 overflow-hidden">
+                                  <img
+                                    src={`/assets/items/${req.img}.png`}
+                                    alt={req.name}
+                                    className="max-w-full max-h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/assets/items/gold_cheese.png'
+                                    }}
+                                  />
+                                </div>
+                                <div className="text-left">
+                                  <h5 className="text-xs font-bold text-slate-200">{req.name}</h5>
+                                  <p className="text-[10px] text-slate-500">Cần cho tiến hóa cấp {lv + 1}</p>
+                                </div>
+                              </div>
+
+                              <div>
+                                {isOwned ? (
+                                  <span className="text-[10px] bg-slate-800 border border-slate-700/60 text-slate-400 px-2.5 py-1.5 rounded-lg font-bold select-none">
+                                    Đã sở hữu
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleBuyEvolutionItem(req.name, req.price)}
+                                    className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 px-2.5 py-1.5 rounded-lg font-extrabold active:scale-95 transition-all"
+                                  >
+                                    🪙 {req.price} xu
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right side: Preview next level */}
+                    <div className="p-4 bg-slate-950/30 border border-slate-800/80 rounded-2xl flex flex-col justify-between items-center text-center space-y-4">
+                      <div>
+                        <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wide">
+                          Xem trước Tiến hóa
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-200 mt-2">Cấp độ tiếp theo</h4>
+                      </div>
+
+                      {studentPet.current_level < 10 ? (
+                        <div className="space-y-4 flex flex-col items-center">
+                          <div className="relative w-28 h-28 mx-auto bg-slate-900/60 rounded-full border border-slate-800 flex items-center justify-center p-2 overflow-hidden shadow-inner filter grayscale opacity-40 select-none">
+                            <img
+                              src={`/assets/pets/pet_lv${studentPet.current_level + 1}.png`}
+                              alt="Next Evolution"
+                              className="max-w-full max-h-full object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                              }}
+                            />
+                          </div>
+
+                          <div className="text-xs text-slate-400 max-w-[200px]">
+                            Đạt cấp kế tiếp và sở hữu{' '}
+                            <strong className="text-indigo-300">
+                              "{getRequiredItemForLevel(studentPet.current_level)?.name || 'Không cần'}"
+                            </strong>{' '}
+                            để mở khóa hình thú cưng này!
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-6 text-slate-500 text-xs">
+                          Thú cưng đã đạt cấp tiến hóa cao nhất!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory Congratulations & Rewards Modal */}
+      {showVictoryPopup && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 text-center shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15),transparent_60%)] pointer-events-none"></div>
+            
+            <div className="text-4xl my-4 animate-bounce">
+              {isLevelUp ? '🎉 LEVEL UP! 🎉' : '🌟 CHÚC MỪNG! 🌟'}
+            </div>
+
+            <h3 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-indigo-400 tracking-wider">
+              {victoryTitle}
+            </h3>
+
+            {isLevelUp ? (
+              <div className="my-6 space-y-4 flex flex-col items-center">
+                <div className="relative w-32 h-32 bg-indigo-500/10 rounded-full border border-indigo-500/30 flex items-center justify-center p-3 animate-pulse">
+                  <img
+                    src={studentPet ? `/assets/pets/pet_lv${studentPet.current_level}.png` : '/assets/pets/pet_lv0.png'}
+                    alt="New Pet"
+                    className="max-w-full max-h-full object-contain animate-bounce"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-indigo-300 font-bold">Thú cưng của bạn đã tiến hóa lên cấp độ mới!</p>
+              </div>
+            ) : (
+              <div className="my-6 space-y-6">
+                <p className="text-xs text-slate-400 font-medium">Bạn đã hoàn thành xuất sắc thử thách làm bài kiểm tra và nhận được:</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl">
+                    <span className="text-3xl block">🪙</span>
+                    <span className="text-base font-black text-amber-300 block mt-2">+{victoryCoinsEarned} xu</span>
+                    <span className="text-[10px] text-slate-500 block">Tiền vàng cộng ví</span>
+                  </div>
+
+                  <div className="p-4 bg-indigo-500/10 border border-indigo-500/25 rounded-2xl">
+                    <span className="text-3xl block">⭐</span>
+                    <span className="text-base font-black text-indigo-300 block mt-2">+{victoryExpEarned} EXP</span>
+                    <span className="text-[10px] text-slate-500 block">Kinh nghiệm thú nuôi</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setShowVictoryPopup(false)
+                setIsLevelUp(false)
+              }}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-500/10"
+            >
+              Tiếp tục học tập
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Custom Alert Modal */}
       <AlertModal

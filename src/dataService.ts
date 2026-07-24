@@ -52,6 +52,30 @@ export interface Message {
   created_at?: string;
 }
 
+export interface StudentPet {
+  id?: number;
+  student_username: string;
+  pet_name: string;
+  current_level: number;
+  current_exp: number;
+  current_hp: number;
+  coins: number;
+  equipped_hat?: string | null;
+  equipped_accessory?: string | null;
+  last_decay_at?: string;
+  created_at?: string;
+}
+
+export interface PetEvent {
+  id?: number;
+  student_username: string;
+  title: string;
+  reward_coins: number;
+  reward_exp: number;
+  is_completed: boolean;
+  created_at?: string;
+}
+
 // Helper: LocalStorage Fallback database
 const getLocal = (key: string, def: any) => {
   const val = localStorage.getItem(key);
@@ -430,5 +454,185 @@ export const dataService = {
       }
       return [];
     }
+  },
+
+  async getStudentPet(username: string): Promise<StudentPet> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('studentpets')
+          .select('*')
+          .eq('student_username', username)
+          .maybeSingle();
+        if (data) return data as StudentPet;
+        
+        // If not exists, insert default
+        const defaultPet: StudentPet = {
+          student_username: username,
+          pet_name: 'Hamster',
+          current_level: 0,
+          current_exp: 0,
+          current_hp: 100,
+          coins: 0
+        };
+        const { data: inserted, error: insertError } = await supabase
+          .from('studentpets')
+          .insert(defaultPet)
+          .select()
+          .single();
+        if (inserted) return inserted as StudentPet;
+        return defaultPet;
+      } catch (err) {
+        console.error("Error in getStudentPet:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const pets = getLocal('local_student_pets', []);
+    let found = pets.find((p: any) => p.student_username === username);
+    if (!found) {
+      found = {
+        id: Math.floor(Math.random() * 1000000),
+        student_username: username,
+        pet_name: 'Hamster',
+        current_level: 0,
+        current_exp: 0,
+        current_hp: 100,
+        coins: 0,
+        equipped_hat: null,
+        equipped_accessory: null
+      };
+      pets.push(found);
+      setLocal('local_student_pets', pets);
+    }
+    return found as StudentPet;
+  },
+
+  async updateStudentPet(username: string, updates: Partial<StudentPet>): Promise<StudentPet> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('studentpets')
+          .update(updates)
+          .eq('student_username', username)
+          .select()
+          .single();
+        if (data) return data as StudentPet;
+      } catch (err) {
+        console.error("Error in updateStudentPet:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const pets = getLocal('local_student_pets', []);
+    const idx = pets.findIndex((p: any) => p.student_username === username);
+    if (idx !== -1) {
+      pets[idx] = { ...pets[idx], ...updates };
+      setLocal('local_student_pets', pets);
+      return pets[idx] as StudentPet;
+    }
+    const newPet = {
+      id: Math.floor(Math.random() * 1000000),
+      student_username: username,
+      pet_name: 'Hamster',
+      current_level: 0,
+      current_exp: 0,
+      current_hp: 100,
+      coins: 0,
+      ...updates
+    };
+    pets.push(newPet);
+    setLocal('local_student_pets', pets);
+    return newPet as StudentPet;
+  },
+
+  async getPetEvents(username: string): Promise<PetEvent[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('petevents')
+          .select('*')
+          .eq('student_username', username)
+          .order('id', { ascending: false });
+        if (data) return data as PetEvent[];
+      } catch (err) {
+        console.error("Error in getPetEvents:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const events = getLocal('local_pet_events', []);
+    return events.filter((e: any) => e.student_username === username) as PetEvent[];
+  },
+
+  async createPetEvent(event: Partial<PetEvent>): Promise<PetEvent> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('petevents')
+          .insert(event)
+          .select()
+          .single();
+        if (data) return data as PetEvent;
+      } catch (err) {
+        console.error("Error in createPetEvent:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const events = getLocal('local_pet_events', []);
+    const newEvent = {
+      id: Math.floor(Math.random() * 1000000),
+      student_username: event.student_username!,
+      title: event.title!,
+      reward_coins: event.reward_coins || 0,
+      reward_exp: event.reward_exp || 0,
+      is_completed: false,
+      created_at: new Date().toISOString()
+    };
+    events.unshift(newEvent);
+    setLocal('local_pet_events', events);
+    return newEvent as PetEvent;
+  },
+
+  async completePetEvent(eventId: number): Promise<void> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('petevents')
+          .update({ is_completed: true })
+          .eq('id', eventId);
+        return;
+      } catch (err) {
+        console.error("Error in completePetEvent:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const events = getLocal('local_pet_events', []);
+    const idx = events.findIndex((e: any) => e.id === eventId);
+    if (idx !== -1) {
+      events[idx].is_completed = true;
+      setLocal('local_pet_events', events);
+    }
+  },
+
+  async deletePetEvent(eventId: number): Promise<void> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('petevents')
+          .delete()
+          .eq('id', eventId);
+        return;
+      } catch (err) {
+        console.error("Error in deletePetEvent:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const events = getLocal('local_pet_events', []);
+    const filtered = events.filter((e: any) => e.id !== eventId);
+    setLocal('local_pet_events', filtered);
   }
 };

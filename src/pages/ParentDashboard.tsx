@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool } from 'lucide-react'
-import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
+import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
@@ -44,7 +44,32 @@ export default function ParentDashboard() {
   }
 
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades'>('syllabus')
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades' | 'pet'>('syllabus')
+
+  // Virtual Pet & Custom Quest States
+  const [studentPet, setStudentPet] = useState<StudentPet | null>(null)
+  const [petEvents, setPetEvents] = useState<PetEvent[]>([])
+  const [newEventTitle, setNewEventTitle] = useState('')
+  const [newEventCoins, setNewEventCoins] = useState(50)
+  const [newEventExp, setNewEventExp] = useState(100)
+  const [updatingPet, setUpdatingPet] = useState(false)
+
+  const loadPetAndEvents = async () => {
+    try {
+      const pet = await dataService.getStudentPet('hocsinh')
+      setStudentPet(pet)
+      const evs = await dataService.getPetEvents('hocsinh')
+      setPetEvents(evs)
+    } catch (err) {
+      console.error("Failed to load pet and events:", err)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'pet') {
+      loadPetAndEvents()
+    }
+  }, [activeTab])
   
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -218,6 +243,78 @@ export default function ParentDashboard() {
     localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
     await dataService.saveUserApiKeys(profile.auth_user_id!, updated);
   };
+
+  const handleRewardCoins = async (amount: number) => {
+    if (!studentPet) return
+    setUpdatingPet(true)
+    const nextCoins = studentPet.coins + amount
+    const updated = await dataService.updateStudentPet('hocsinh', { coins: nextCoins })
+    setStudentPet(updated)
+    setUpdatingPet(false)
+    alert(`Thưởng thành công +${amount} xu cho học sinh!`)
+  }
+
+  const handleRewardHp = async (amount: number) => {
+    if (!studentPet) return
+    setUpdatingPet(true)
+    const nextHp = Math.min(100, studentPet.current_hp + amount)
+    const updated = await dataService.updateStudentPet('hocsinh', { current_hp: nextHp })
+    setStudentPet(updated)
+    setUpdatingPet(false)
+    alert(`Hồi thành công +${amount} HP sức khỏe thú cưng!`)
+  }
+
+  const handleRewardExp = async (amount: number) => {
+    if (!studentPet) return
+    setUpdatingPet(true)
+    let nextExp = studentPet.current_exp + amount
+    let nextLevel = studentPet.current_level
+    
+    while (true) {
+      const expNeeded = (nextLevel * 200) + 100
+      if (nextExp >= expNeeded && nextLevel < 10) {
+        nextExp -= expNeeded
+        nextLevel += 1
+      } else {
+        break
+      }
+    }
+
+    const updated = await dataService.updateStudentPet('hocsinh', {
+      current_exp: nextExp,
+      current_level: nextLevel
+    })
+    setStudentPet(updated)
+    setUpdatingPet(false)
+    alert(`Cộng thành công +${amount} EXP cho thú cưng!`)
+  }
+
+  const handleCreateEvent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEventTitle.trim()) return
+    setUpdatingPet(true)
+    await dataService.createPetEvent({
+      student_username: 'hocsinh',
+      title: newEventTitle.trim(),
+      reward_coins: newEventCoins,
+      reward_exp: newEventExp,
+      is_completed: false
+    })
+    setNewEventTitle('')
+    const evs = await dataService.getPetEvents('hocsinh')
+    setPetEvents(evs)
+    setUpdatingPet(false)
+    alert("Đã tạo sự kiện và đặt phần thưởng thành công!")
+  }
+
+  const handleDeleteEvent = async (id: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) return
+    setUpdatingPet(true)
+    await dataService.deletePetEvent(id)
+    const evs = await dataService.getPetEvents('hocsinh')
+    setPetEvents(evs)
+    setUpdatingPet(false)
+  }
 
   // Load initial data
   useEffect(() => {
@@ -752,6 +849,15 @@ export default function ParentDashboard() {
               {activeTab === 'grades' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
               3. Kết quả thi & AI feedback
             </button>
+            <button
+              onClick={() => setActiveTab('pet')}
+              className={`pb-3 text-sm font-semibold transition-all relative ${
+                activeTab === 'pet' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {activeTab === 'pet' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+              4. Quản lý Thú cưng & Sự kiện
+            </button>
           </div>
 
           {/* TAB 1: SYLLABUS */}
@@ -1112,6 +1218,285 @@ export default function ParentDashboard() {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 4: PET MANAGEMENT */}
+          {activeTab === 'pet' && (
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start animate-in fade-in slide-in-from-bottom duration-200">
+              {/* Left Column: Pet Status and Actions */}
+              <div className="xl:col-span-2 p-5 rounded-2xl glass-card border border-slate-800 space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/60">
+                  <Award className="w-5 h-5 text-indigo-400" />
+                  <h3 className="font-bold text-slate-200 text-sm">Thú cưng của học sinh</h3>
+                </div>
+
+                {studentPet ? (
+                  <div className="space-y-6 text-center">
+                    {/* Pet Avatar Card */}
+                    <div className="relative w-40 h-40 mx-auto bg-slate-950/40 rounded-full border border-indigo-500/20 flex items-center justify-center overflow-hidden shadow-inner p-4 group">
+                      <img
+                        src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
+                        alt={`Thú nuôi Cấp ${studentPet.current_level}`}
+                        className="max-w-full max-h-full object-contain transition-transform group-hover:scale-110 duration-200"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg font-bold text-indigo-300">
+                        {studentPet.pet_name}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Cấp độ hiện tại: <span className="font-bold text-slate-200">Level {studentPet.current_level}</span>
+                      </p>
+                    </div>
+
+                    {/* Bars */}
+                    <div className="space-y-3 text-left">
+                      {/* HP Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-400 flex items-center gap-1">❤️ Máu (Sức khỏe):</span>
+                          <span className={`${studentPet.current_hp < 30 ? 'text-rose-450 font-bold' : 'text-emerald-400'}`}>
+                            {studentPet.current_hp}/100 HP
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-950/60 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                          <div
+                            className={`h-full transition-all duration-300 ${
+                              studentPet.current_hp < 30
+                                ? 'bg-rose-500 animate-pulse'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${studentPet.current_hp}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* EXP Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-400 flex items-center gap-1">⭐ Kinh nghiệm (EXP):</span>
+                          <span className="text-indigo-400">
+                            {studentPet.current_exp} / {(studentPet.current_level * 200) + 100} EXP
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-950/60 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                          <div
+                            className="h-full bg-amber-500 transition-all duration-300"
+                            style={{
+                              width: `${(studentPet.current_exp / ((studentPet.current_level * 200) + 100)) * 100}%`
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Coins Card */}
+                      <div className="flex items-center justify-between p-3.5 bg-slate-950/30 rounded-xl border border-slate-800/80 mt-4 select-none">
+                        <span className="text-xs font-medium text-slate-400">Ví xu tích lũy:</span>
+                        <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                          <span className="text-lg">🪙</span>
+                          <span>{studentPet.coins} xu</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Admin Actions Panel */}
+                    <div className="pt-4 border-t border-slate-800/60 space-y-4 text-left">
+                      <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hành động thưởng phạt</h5>
+                      
+                      <div className="space-y-3">
+                        {/* Coins buttons */}
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] text-slate-400 font-semibold block">Thưởng xu học tập:</span>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardCoins(50)}
+                              className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 py-2 rounded-xl border border-amber-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              +50 xu
+                            </button>
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardCoins(100)}
+                              className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 py-2 rounded-xl border border-amber-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              +100 xu
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* HP buttons */}
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] text-slate-400 font-semibold block">Hồi phục sức khỏe (HP):</span>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardHp(20)}
+                              className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-455 py-2 rounded-xl border border-emerald-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              +20 HP
+                            </button>
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardHp(100)}
+                              className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-455 py-2 rounded-xl border border-emerald-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              Hồi đầy 100%
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* EXP buttons */}
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] text-slate-400 font-semibold block">Thưởng EXP kinh nghiệm:</span>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardExp(100)}
+                              className="flex-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 py-2 rounded-xl border border-indigo-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              +100 EXP
+                            </button>
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleRewardExp(500)}
+                              className="flex-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 py-2 rounded-xl border border-indigo-500/25 text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              +500 EXP
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-600" />
+                    Đang nạp thông tin thú ảo...
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Custom Events & Quests */}
+              <div className="xl:col-span-3 space-y-6">
+                {/* Event Creator Form */}
+                <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800/60">
+                    <Plus className="w-5 h-5 text-indigo-400" />
+                    <h3 className="font-bold text-slate-200 text-sm">Giao nhiệm vụ & Đặt phần thưởng mới</h3>
+                  </div>
+
+                  <form onSubmit={handleCreateEvent} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-slate-400 block font-medium">Nội dung thử thách / Sự kiện</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEventTitle}
+                        onChange={(e) => setNewEventTitle(e.target.value)}
+                        placeholder="Ví dụ: Hoàn thành 3 đề thi trắc nghiệm đạt trên 8 điểm"
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 transition-all font-medium"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 block font-medium">Xu thưởng (Coins)</label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          max={5000}
+                          value={newEventCoins}
+                          onChange={(e) => setNewEventCoins(parseInt(e.target.value) || 0)}
+                          className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/60 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 block font-medium">EXP thưởng</label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          max={5000}
+                          value={newEventExp}
+                          onChange={(e) => setNewEventExp(parseInt(e.target.value) || 0)}
+                          className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/60 transition-all font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={updatingPet || !newEventTitle.trim()}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Kích hoạt sự kiện & giao bài
+                    </button>
+                  </form>
+                </div>
+
+                {/* Events list */}
+                <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800/60">
+                    <Clock className="w-5 h-5 text-indigo-400" />
+                    <h3 className="font-bold text-slate-200 text-sm">Danh sách sự kiện thử thách đang chạy</h3>
+                  </div>
+
+                  {petEvents.length === 0 ? (
+                    <div className="py-10 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
+                      Chưa có sự kiện thử thách nào được tạo. Hãy tạo thử thách để khích lệ con!
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                      {petEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="p-4 rounded-xl bg-slate-950/30 border border-slate-800/80 flex items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-slate-200">
+                              {ev.title}
+                            </h4>
+                            <div className="flex gap-2">
+                              <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
+                                🪙 {ev.reward_coins} xu
+                              </span>
+                              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
+                                ⭐ {ev.reward_exp} EXP
+                              </span>
+                              {ev.is_completed ? (
+                                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                                  ✓ Hoàn thành
+                                </span>
+                              ) : (
+                                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                  Đang làm...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <button
+                            disabled={updatingPet}
+                            onClick={() => handleDeleteEvent(ev.id!)}
+                            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
+                            title="Xóa sự kiện này"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </section>

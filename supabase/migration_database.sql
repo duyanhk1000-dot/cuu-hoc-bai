@@ -143,3 +143,34 @@ CREATE POLICY "Allow select messages" ON public.messages
 CREATE POLICY "Allow insert messages" ON public.messages
     FOR INSERT TO anon, authenticated
     WITH CHECK (true);
+
+-- 3.6 BẢNG STUDENTPETS & PETEVENTS
+CREATE TABLE IF NOT EXISTS public.studentpets (
+    id SERIAL PRIMARY KEY,
+    student_username VARCHAR(100) UNIQUE NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    pet_name VARCHAR(100) DEFAULT 'Hamster',
+    current_level INTEGER DEFAULT 0,
+    current_exp INTEGER DEFAULT 0,
+    current_hp INTEGER DEFAULT 100,
+    coins INTEGER DEFAULT 0,
+    equipped_hat VARCHAR(100) DEFAULT NULL,
+    equipped_accessory VARCHAR(100) DEFAULT NULL,
+    last_decay_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.petevents (
+    id SERIAL PRIMARY KEY,
+    student_username VARCHAR(100) NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    reward_coins INTEGER DEFAULT 0,
+    reward_exp INTEGER DEFAULT 0,
+    is_completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE public.studentpets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.petevents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all on studentpets" ON public.studentpets FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on petevents" ON public.petevents FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);

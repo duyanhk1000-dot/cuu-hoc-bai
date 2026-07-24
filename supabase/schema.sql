@@ -75,8 +75,33 @@ CREATE POLICY "Cho phép upload sách công khai" ON storage.objects
 FOR INSERT TO public
 WITH CHECK (bucket_id = 'textbooks');
 
--- Thiết lập Policy cho phép đọc (SELECT) file công khai
+-- Thiết lập Policy cho phép xem sách công khai
 CREATE POLICY "Cho phép xem sách công khai" ON storage.objects
 FOR SELECT TO public
 USING (bucket_id = 'textbooks');
 
+-- 7. Bảng StudentPets (Lưu trữ trạng thái thú cưng)
+CREATE TABLE IF NOT EXISTS StudentPets (
+    id SERIAL PRIMARY KEY,
+    student_username VARCHAR(100) UNIQUE NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    pet_name VARCHAR(100) DEFAULT 'Hamster',
+    current_level INTEGER DEFAULT 0,
+    current_exp INTEGER DEFAULT 0,
+    current_hp INTEGER DEFAULT 100,
+    coins INTEGER DEFAULT 0,
+    equipped_hat VARCHAR(100) DEFAULT NULL,
+    equipped_accessory VARCHAR(100) DEFAULT NULL,
+    last_decay_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. Bảng PetEvents (Nhiệm vụ/Sự kiện từ phụ huynh)
+CREATE TABLE IF NOT EXISTS PetEvents (
+    id SERIAL PRIMARY KEY,
+    student_username VARCHAR(100) NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    reward_coins INTEGER DEFAULT 0,
+    reward_exp INTEGER DEFAULT 0,
+    is_completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
