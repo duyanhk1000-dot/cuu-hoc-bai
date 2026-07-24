@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { getDecryptedApiKeys, reportFailedKey } from './utils/apiKeyManager'
+import { getDecryptedApiKeys, reportFailedKey } from './utils/apiKeyManager.js'
 
 async function generateWithRetry(ai: any, model: string, options: any, maxRetries = 3, delayMs = 1500) {
   let lastErr: any = null
