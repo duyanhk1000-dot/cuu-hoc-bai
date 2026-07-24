@@ -62,6 +62,7 @@ export interface StudentPet {
   coins: number;
   equipped_hat?: string | null;
   equipped_accessory?: string | null;
+  has_renamed?: boolean;
   last_decay_at?: string;
   created_at?: string;
 }
@@ -484,7 +485,8 @@ export const dataService = {
           current_level: 0,
           current_exp: 10,
           current_hp: 100,
-          coins: 10
+          coins: 10,
+          has_renamed: false
         };
         const { data: inserted, error: insertError } = await supabase
           .from('studentpets')
@@ -511,7 +513,8 @@ export const dataService = {
         current_hp: 100,
         coins: 10,
         equipped_hat: null,
-        equipped_accessory: null
+        equipped_accessory: null,
+        has_renamed: false
       };
       pets.push(found);
       setLocal('local_student_pets', pets);
@@ -519,6 +522,11 @@ export const dataService = {
       if (found.current_level === 0 && found.current_exp === 0 && found.coins === 0) {
         found.current_exp = 10;
         found.coins = 10;
+        found.has_renamed = false;
+        setLocal('local_student_pets', pets);
+      }
+      if (found.has_renamed === undefined) {
+        found.has_renamed = false;
         setLocal('local_student_pets', pets);
       }
     }

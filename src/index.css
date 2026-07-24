@@ -319,4 +319,23 @@
   animation: slideInFromBottom 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Hoạt họa nổi lắc lư nhẹ cho Hamster */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Hoạt họa rung lắc khi tương tác click chuột */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px) rotate(-1deg); }
+  40%, 80% { transform: translateX(4px) rotate(1deg); }
+}
+.animate-shake {
+  animation: shake 0.2s ease-in-out;
+}
+
 

@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS public.studentpets (
     coins INTEGER DEFAULT 0,
     equipped_hat VARCHAR(100) DEFAULT NULL,
     equipped_accessory VARCHAR(100) DEFAULT NULL,
+    has_renamed BOOLEAN DEFAULT FALSE,
     last_decay_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

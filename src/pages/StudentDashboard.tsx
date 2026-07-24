@@ -91,11 +91,16 @@ export default function StudentDashboard() {
   // Virtual Pet & Shop States
   const [studentPet, setStudentPet] = useState<StudentPet | null>(null)
   const [isPetModalOpen, setIsPetModalOpen] = useState(false)
-  const [petShopTab, setPetShopTab] = useState<'interact' | 'shop'>('interact')
+  const [petShopTab, setPetShopTab] = useState<'interact' | 'shop' | 'rules'>('interact')
   const [ownedEvolutionItems, setOwnedEvolutionItems] = useState<string[]>(() => {
     return JSON.parse(localStorage.getItem('student_pet_evolution_items') || '[]')
   })
   const [petEvents, setPetEvents] = useState<PetEvent[]>([])
+  
+  // States for renaming and shaking
+  const [isRenameInputOpen, setIsRenameInputOpen] = useState(false)
+  const [newPetName, setNewPetName] = useState('')
+  const [isPetShaking, setIsPetShaking] = useState(false)
 
   // Victory screen animation states
   const [showVictoryPopup, setShowVictoryPopup] = useState(false)
@@ -269,6 +274,52 @@ export default function StudentDashboard() {
     })
     setStudentPet(updated)
     alert(`Đã cho thú cưng ăn ${foodName}! Hồi phục +${hpRestore} HP.`)
+  }
+
+  const handleRenamePet = async () => {
+    if (!studentPet) return
+    const trimName = newPetName.trim()
+    if (!trimName) {
+      alert("Tên thú cưng không được để trống!")
+      return
+    }
+    if (trimName.length > 20) {
+      alert("Tên thú cưng tối đa 20 ký tự!")
+      return
+    }
+
+    const isFirstTime = !studentPet.has_renamed
+    if (isFirstTime) {
+      playSound('level_up')
+      const updated = await dataService.updateStudentPet('hocsinh', {
+        pet_name: trimName,
+        has_renamed: true
+      })
+      setStudentPet(updated)
+      setIsRenameInputOpen(false)
+      alert(`Đổi tên thú cưng thành công thành: ${trimName} (Miễn phí lần đầu)!`)
+    } else {
+      if (studentPet.coins < 50) {
+        alert("Bạn không đủ 50 xu để mua bút đổi tên!")
+        return
+      }
+      playSound('coin')
+      const updated = await dataService.updateStudentPet('hocsinh', {
+        pet_name: trimName,
+        coins: studentPet.coins - 50
+      })
+      setStudentPet(updated)
+      setIsRenameInputOpen(false)
+      alert(`Đổi tên thú cưng thành công thành: ${trimName}! Chi phí: 50 xu.`)
+    }
+  }
+
+  const handlePetImageClick = () => {
+    playSound('squeak')
+    setIsPetShaking(true)
+    setTimeout(() => {
+      setIsPetShaking(false)
+    }, 250)
   }
 
   const handleBuyEvolutionItem = async (itemName: string, price: number) => {
@@ -1435,7 +1486,7 @@ export default function StudentDashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">🐹</span>
                 <div className="text-left">
-                  <h3 className="text-base font-bold text-white">Chăm sóc & Nâng cấp Thú Cưng</h3>
+                  <h3 className="text-base font-bold text-white">Hệ thống thú cưng</h3>
                   <p className="text-[11px] text-slate-400">Hãy cho thú ăn và sắm đồ để tiến hóa thú nuôi nhé!</p>
                 </div>
               </div>
@@ -1452,22 +1503,70 @@ export default function StudentDashboard() {
               {/* Pet Status Header Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-slate-950/30 p-5 rounded-2xl border border-slate-800/80">
                 {/* Pet Image Frame */}
-                <div className="relative w-36 h-36 mx-auto bg-slate-900/60 rounded-full border border-indigo-500/20 flex items-center justify-center overflow-hidden shadow-inner p-3">
+                <div 
+                  onClick={handlePetImageClick}
+                  className="relative w-36 h-36 mx-auto bg-slate-900/60 rounded-full border border-indigo-500/20 flex items-center justify-center overflow-hidden shadow-inner p-3 cursor-pointer group"
+                >
                   <img
                     src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
                     alt="Pet Avatar"
-                    className="max-w-full max-h-full object-contain"
+                    className={`max-w-full max-h-full object-contain transition-transform select-none animate-float ${isPetShaking ? 'animate-shake' : ''}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
                     }}
                   />
+                  <div className="absolute bottom-1 text-[9px] bg-indigo-500/20 border border-indigo-500/35 text-indigo-300 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    Chạm vào tớ!
+                  </div>
                 </div>
 
                 {/* Pet stats details */}
                 <div className="space-y-4">
                   <div className="text-left">
-                    <h4 className="text-lg font-bold text-indigo-300">{studentPet.pet_name}</h4>
-                    <p className="text-xs text-slate-400">Cấp độ hiện tại: <span className="font-extrabold text-slate-200">Level {studentPet.current_level}</span></p>
+                    {isRenameInputOpen ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <input
+                          type="text"
+                          value={newPetName}
+                          onChange={(e) => setNewPetName(e.target.value)}
+                          placeholder="Nhập tên mới..."
+                          className="px-2 py-1 text-xs rounded border bg-slate-950 border-slate-800 text-white w-32 focus:outline-none"
+                          maxLength={20}
+                        />
+                        <button
+                          onClick={handleRenamePet}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[10px] font-bold"
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          onClick={() => setIsRenameInputOpen(false)}
+                          className="bg-slate-850 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded text-[10px] font-bold"
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-bold text-indigo-300">{studentPet.pet_name}</h4>
+                        <button
+                          onClick={() => {
+                            setNewPetName(studentPet.pet_name)
+                            setIsRenameInputOpen(true)
+                          }}
+                          title={studentPet.has_renamed ? "Đổi tên (Tốn 50 xu)" : "Đổi tên (Miễn phí lần đầu)"}
+                          className="text-slate-400 hover:text-indigo-400 transition-colors p-1"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                          {studentPet.has_renamed ? "50 xu" : "Miễn phí"}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-400 mt-1">Cấp độ hiện tại: <span className="font-extrabold text-slate-200">Level {studentPet.current_level}</span></p>
                   </div>
 
                   {/* HP & EXP sliders */}
@@ -1522,7 +1621,7 @@ export default function StudentDashboard() {
                   }`}
                 >
                   {petShopTab === 'interact' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                  Tương tác & Tiến hóa
+                  Cho ăn
                 </button>
                 <button
                   onClick={() => setPetShopTab('shop')}
@@ -1531,7 +1630,16 @@ export default function StudentDashboard() {
                   }`}
                 >
                   {petShopTab === 'shop' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                  Cửa hàng Thú Cưng
+                  Cửa hàng tiến hóa
+                </button>
+                <button
+                  onClick={() => setPetShopTab('rules')}
+                  className={`pb-2.5 text-sm font-semibold transition-all relative ${
+                    petShopTab === 'rules' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {petShopTab === 'rules' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                  Hệ thống thưởng điểm
                 </button>
               </div>
 
@@ -1708,6 +1816,56 @@ export default function StudentDashboard() {
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 3: Economy & Progression rules */}
+              {petShopTab === 'rules' && (
+                <div className="space-y-4 text-left text-xs text-slate-300 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3">
+                    <h4 className="text-sm font-bold text-indigo-400 flex items-center gap-1.5">
+                      <span>🪙</span> Cơ chế Kiếm Xu & EXP
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-400">
+                      <li>
+                        <strong className="text-slate-200">Hoàn thành bài kiểm tra lần đầu:</strong> Nhận đủ phần thưởng tối đa ứng với điểm số. Điểm càng cao, phần thưởng Coins & EXP càng lớn!
+                      </li>
+                      <li>
+                        <strong className="text-slate-200">Làm lại bài kiểm tra (Chống Farm):</strong> Nhận Coins & EXP chênh lệch nếu đạt mốc điểm cao hơn kỷ lục cũ. Nếu điểm bằng hoặc thấp hơn, chỉ nhận khích lệ cố định <span className="text-indigo-400 font-bold">+5 EXP</span> (không cộng xu).
+                      </li>
+                      <li>
+                        <strong className="text-slate-200">Sự kiện từ Phụ huynh:</strong> Hoàn thành các thử thách đặc biệt do bố mẹ giao để nhận phần thưởng lớn tức thì!
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3">
+                    <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                      <span>❤️</span> Cơ chế Sức khỏe (HP) & Cho ăn
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-400">
+                      <li>
+                        Thú cưng sẽ bị tiêu hao sức khỏe (giảm HP dần) theo thời gian nếu không được chăm sóc.
+                      </li>
+                      <li>
+                        Sử dụng xu trong ví học tập để mua thức ăn trong tab <strong className="text-slate-300">"Cho ăn"</strong> để hồi phục HP (Hạt hướng dương: +15 HP, Bình sữa: +25 HP, Phô mai: +40 HP).
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3">
+                    <h4 className="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+                      <span>⚡</span> Cơ chế Tiến hóa (Evolution)
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-400">
+                      <li>
+                        Thú cưng có thể tiến hóa từ Level 0 lên tới Level 10. Mỗi cấp độ tiến hóa mang một ngoại hình đặc trưng khác nhau.
+                      </li>
+                      <li>
+                        <strong className="text-slate-200">Điều kiện tiến hóa:</strong> Cần tích lũy đủ EXP của cấp hiện tại, giữ sức khỏe <strong className="text-emerald-400">HP &gt;= 95</strong>, và phải sở hữu vật phẩm tiến hóa tương ứng mua từ <strong className="text-slate-300">"Cửa hàng tiến hóa"</strong>.
+                      </li>
+                    </ul>
                   </div>
                 </div>
               )}
