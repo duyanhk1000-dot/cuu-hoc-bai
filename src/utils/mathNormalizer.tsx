@@ -1,4 +1,5 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 /**
  * Math Normalizer Utility (Refactored & Simplified)
@@ -250,7 +251,8 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
         const formula = part.slice(2, -2).trim();
         try {
           const html = katex.renderToString(formula, { displayMode: true, throwOnError: false });
-          return <div key={key} className="my-4 overflow-x-auto select-all" dangerouslySetInnerHTML={{ __html: html }} />;
+          const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true, mathMl: true, svg: true } });
+          return <div key={key} className="my-4 overflow-x-auto select-all" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
         } catch (e) {
           return <div key={key} className="text-rose-400 p-2 bg-slate-950/60 border border-slate-800 rounded-lg text-xs font-mono">{part}</div>;
         }
@@ -261,7 +263,8 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
         const formula = part.slice(1, -1).trim();
         try {
           const html = katex.renderToString(formula, { displayMode: false, throwOnError: false });
-          return <span key={key} className="mx-0.5 select-all" dangerouslySetInnerHTML={{ __html: html }} />;
+          const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true, mathMl: true, svg: true } });
+          return <span key={key} className="mx-0.5 select-all" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
         } catch (e) {
           return <span key={key} className="text-rose-400 font-mono text-xs">{part}</span>;
         }

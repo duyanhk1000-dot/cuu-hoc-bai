@@ -4,6 +4,7 @@ import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataServ
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
+import DOMPurify from 'dompurify'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -537,7 +538,7 @@ export default function ParentDashboard() {
           <div 
             key={idx} 
             className="mermaid my-5 p-4 bg-slate-950/60 rounded-xl border border-slate-800/80 text-center overflow-x-auto text-slate-100"
-            dangerouslySetInnerHTML={{ __html: code }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(code) }}
           />
         );
       }
@@ -1231,7 +1232,7 @@ export default function ParentDashboard() {
                     <div 
                       key={`${reviewingLesson.id}-${reviewingLesson.lesson_number}`}
                       className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
-                      dangerouslySetInnerHTML={{ __html: reviewingLesson.mindmap }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(reviewingLesson.mindmap) }}
                     />
                   ) : (
                     <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/10">
