@@ -942,10 +942,22 @@ export default function ParentDashboard() {
                               {existingLesson ? (
                                 <>
                                   {existingLesson.is_published ? (
-                                    <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
+                                    <span 
+                                      onClick={(e) => {
+                                        if (hasTakenTest) {
+                                          e.stopPropagation();
+                                          const matchedGrade = grades.find(g => g.subject === selectedSubject && g.lesson_number === lessonNum);
+                                          if (matchedGrade) setSelectedGrade(matchedGrade);
+                                        }
+                                      }}
+                                      className={`text-[10px] bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold ${
+                                        hasTakenTest ? 'cursor-pointer hover:bg-emerald-500/20 active:scale-95 transition-all select-none' : ''
+                                      }`}
+                                      title={hasTakenTest ? "Nhấp để xem bài làm & nhận xét của học sinh" : undefined}
+                                    >
                                       <CheckCircle className="w-3 h-3" /> Đã đăng
                                       {hasTakenTest && (
-                                        <span className="flex items-center gap-0.5 border-l border-emerald-500/30 pl-1.5 ml-1 text-emerald-300" title="Học sinh đã làm bài thi">
+                                        <span className="flex items-center gap-0.5 border-l border-emerald-500/30 pl-1.5 ml-1 text-indigo-300" title="Học sinh đã làm bài thi">
                                           <PenTool className="w-2.5 h-2.5 animate-pulse" />
                                         </span>
                                       )}
