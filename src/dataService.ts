@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient'
+import { UserProfile } from './types/auth'
 
 export interface User {
   username: string;
@@ -65,35 +66,52 @@ const setLocal = (key: string, val: any) => {
   localStorage.setItem(key, JSON.stringify(val));
 };
 
-// Seed default users in localStorage if empty
-if (!localStorage.getItem('local_users')) {
-  setLocal('local_users', [
-    { username: 'phuhuynh', password: '123456', role: 'parent' },
-    { username: 'hocsinh', password: '123456', role: 'student' }
-  ]);
-}
-
 export const dataService = {
-  // 1. Auth: Verify user login credentials
-  async verifyUser(username: string, password: string): Promise<User | null> {
+  // 1. Auth helpers
+  async getCurrentProfile(): Promise<UserProfile | null> {
+    // 1.1. Ưu tiên kiểm tra Mock Session để hỗ trợ đăng nhập song song
+    const savedMockProfile = localStorage.getItem('family_learning_mock_profile')
+    if (savedMockProfile && savedMockProfile !== 'undefined') {
+      try {
+        return JSON.parse(savedMockProfile)
+      } catch {
+        localStorage.removeItem('family_learning_mock_profile')
+      }
+    }
+
+    // 1.2. Nếu có cấu hình Supabase, truy vấn theo Supabase Auth
     if (isSupabaseConfigured) {
       try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) return null
         const { data, error } = await supabase
           .from('users')
-          .select('username, role')
-          .eq('username', username)
-          .eq('password', password)
-          .single();
-        if (error || !data) return null;
-        return data as User;
+          .select('id, username, role, auth_user_id')
+          .eq('auth_user_id', session.user.id)
+          .maybeSingle()
+        if (error) return null
+        return data as UserProfile | null
       } catch {
-        return null;
+        return null
       }
-    } else {
-      const users = getLocal('local_users', []);
-      const found = users.find((u: any) => u.username === username && u.password === password);
-      return found ? { username: found.username, role: found.role } : null;
     }
+    return null
+  },
+
+  async isAuthenticated(): Promise<boolean> {
+    const savedMockProfile = localStorage.getItem('family_learning_mock_profile')
+    if (savedMockProfile && savedMockProfile !== 'undefined') {
+      return true
+    }
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        return !!session?.user
+      } catch {
+        return false
+      }
+    }
+    return false
   },
 
   // 2. Syllabus: Get all subjects
@@ -353,14 +371,14 @@ export const dataService = {
   },
 
   // Save API keys for a user (sync to Supabase if configured, else fallback to localUsers)
-  async saveUserApiKeys(username: string, apiKeys: string[]): Promise<boolean> {
+  async saveUserApiKeys(usernameOrId: string, apiKeys: string[]): Promise<boolean> {
     const keysStr = JSON.stringify(apiKeys);
     if (isSupabaseConfigured) {
       try {
         const { error } = await supabase
           .from('users')
           .update({ api_keys: keysStr })
-          .eq('username', username);
+          .or(`auth_user_id.eq.${usernameOrId},username.eq.${usernameOrId}`);
         return !error;
       } catch (err) {
         console.error("Error saving API keys to Supabase:", err);
@@ -368,7 +386,7 @@ export const dataService = {
       }
     } else {
       const users = getLocal('local_users', []);
-      const index = users.findIndex((u: any) => u.username === username);
+      const index = users.findIndex((u: any) => u.username === usernameOrId || u.auth_user_id === usernameOrId);
       if (index !== -1) {
         users[index].api_keys = keysStr;
         setLocal('local_users', users);
@@ -379,14 +397,14 @@ export const dataService = {
   },
 
   // Get API keys for a user
-  async getUserApiKeys(username: string): Promise<string[]> {
+  async getUserApiKeys(usernameOrId: string): Promise<string[]> {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
           .from('users')
           .select('api_keys')
-          .eq('username', username)
-          .single();
+          .or(`auth_user_id.eq.${usernameOrId},username.eq.${usernameOrId}`)
+          .maybeSingle();
         if (error || !data || !data.api_keys) return [];
         return JSON.parse(data.api_keys);
       } catch (err) {
@@ -395,7 +413,7 @@ export const dataService = {
       }
     } else {
       const users = getLocal('local_users', []);
-      const found = users.find((u: any) => u.username === username);
+      const found = users.find((u: any) => u.username === usernameOrId || u.auth_user_id === usernameOrId);
       if (found && found.api_keys) {
         try {
           return JSON.parse(found.api_keys);

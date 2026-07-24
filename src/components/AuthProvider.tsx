@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { authService } from '../services/authService'
-import { dataService } from '../dataService'
 import { AuthUser, UserProfile, AuthContextType } from '../types/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -88,15 +87,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Fallback: Đăng nhập bằng tên người dùng đơn giản (phuhuynh, hocsinh)
       if (!emailOrUsername.includes('@')) {
-        const verifiedUser = await dataService.verifyUser(emailOrUsername, password)
-        if (verifiedUser) {
+        const isMatched = (emailOrUsername === 'phuhuynh' && password === '123456') || 
+                          (emailOrUsername === 'hocsinh' && password === '123456');
+        if (isMatched) {
+          const role: 'parent' | 'student' = emailOrUsername === 'phuhuynh' ? 'parent' : 'student';
           const mockUser = {
             id: emailOrUsername === 'phuhuynh' ? 'mock-parent-id' : 'mock-student-id',
             email: `${emailOrUsername}@example.com`
           } as any
           const mockProfile = {
-            username: verifiedUser.username,
-            role: verifiedUser.role,
+            username: emailOrUsername,
+            role: role,
             auth_user_id: mockUser.id
           }
           setUser(mockUser)
