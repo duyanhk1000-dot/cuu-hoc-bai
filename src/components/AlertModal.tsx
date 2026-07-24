@@ -10,8 +10,8 @@ export const AlertModal = React.memo(({ message, onClose }: AlertModalProps) => 
   if (!message) return null
 
   return (
-    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in">
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-zoom-in">
         <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
           <Sparkles className="w-6 h-6" />
         </div>

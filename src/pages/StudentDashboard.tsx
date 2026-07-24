@@ -81,6 +81,7 @@ export default function StudentDashboard() {
   const [questions, setQuestions] = useState<any[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [submittingTest, setSubmittingTest] = useState(false)
+  const [submittingProgress, setSubmittingProgress] = useState(0)
 
   const [testResult, setTestResult] = useState<any>(null)
   
@@ -98,6 +99,29 @@ export default function StudentDashboard() {
     if (!profile?.username) return
     await sendMessage(profile.username)
   }, [profile?.username, sendMessage])
+
+  useEffect(() => {
+    let interval: any
+    if (submittingTest) {
+      setSubmittingProgress(1)
+      interval = setInterval(() => {
+        setSubmittingProgress(prev => (prev < 4 ? prev + 1 : 4))
+      }, 3500)
+    } else {
+      setSubmittingProgress(0)
+    }
+    return () => clearInterval(interval)
+  }, [submittingTest])
+
+  const getSubmittingProgressText = () => {
+    switch (submittingProgress) {
+      case 1: return '📋 Đang đọc và cấu trúc lại bài làm của bạn...'
+      case 2: return '🔍 Giáo viên AI đang so khớp các đáp án trắc nghiệm...'
+      case 3: return '📝 Đang chấm điểm chi tiết và viết lời khuyên cho các câu tự luận...'
+      case 4: return '✨ Đang tính điểm tổng quan và đồng bộ kết quả lên hệ thống...'
+      default: return 'Đang xử lý bài làm...'
+    }
+  }
 
   if (loading) {
     return (
@@ -381,7 +405,7 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top Header Bar */}
-      <header className="h-16 border-b border-slate-800/80 glass-panel flex items-center justify-between px-6 z-20">
+      <header className="border-b border-slate-800/80 glass-panel flex flex-col md:flex-row items-center justify-between py-3 px-6 h-auto md:h-16 gap-3 z-20">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center glow-indigo animate-pulse-subtle">
             <GraduationCap className="w-6 h-6 text-slate-100" />
@@ -417,7 +441,7 @@ export default function StudentDashboard() {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-y-auto lg:overflow-hidden">
         {/* Sidebar chat & Subject selector */}
         <aside className="lg:col-span-1 border-r border-slate-800/80 bg-slate-900/40 p-5 flex flex-col gap-6 overflow-y-auto">
           {/* Active Lesson Header or normal select */}
@@ -738,11 +762,14 @@ export default function StudentDashboard() {
               {workspaceTab === 'test' && (
                 <div className="max-w-3xl space-y-6">
                   {submittingTest ? (
-                    <div className="p-12 text-center rounded-2xl glass-panel glow-indigo flex flex-col items-center justify-center gap-4">
-                      <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                      <div>
-                        <h4 className="font-bold text-white">Bài đang được hệ thống chấm điểm</h4>
-                        <p className="text-slate-400 text-xs mt-1">Giáo viên đang xem xét chi tiết bài giải của bạn. Vui lòng đợi trong giây lát...</p>
+                    <div className="p-12 text-center rounded-2xl glass-panel glow-indigo flex flex-col items-center justify-center gap-5">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full border-4 border-indigo-500/10 border-t-indigo-500 animate-spin" />
+                        <Clock className="w-6 h-6 text-indigo-400 absolute animate-pulse" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="font-bold text-white text-sm">Hệ thống đang chấm bài của bạn</h4>
+                        <p className="text-slate-400 text-xs mt-1 animate-pulse">{getSubmittingProgressText()}</p>
                       </div>
                     </div>
                   ) : (

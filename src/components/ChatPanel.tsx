@@ -57,7 +57,7 @@ export const ChatPanel = React.memo(({
 
       {/* Floating Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[360px] h-[450px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[45] animate-in slide-in-from-bottom duration-250">
+        <div className="fixed bottom-24 right-6 w-[360px] h-[450px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[45] animate-slide-in-bottom">
           <div className="flex items-center gap-2 border-b border-slate-800 p-4 bg-slate-950/20">
             <MessageSquare className="w-4 h-4 text-indigo-400 animate-pulse" />
             <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider select-none">Trò chuyện gia đình</h2>

@@ -97,6 +97,40 @@ export default function ParentDashboard() {
   
   // KaTeX load state
   const [kaTeXLoaded, setKaTeXLoaded] = useState(false)
+  const [aiProgress, setAiProgress] = useState(0)
+
+  useEffect(() => {
+    let interval: any
+    if (generatingSyllabus || generatingLesson) {
+      setAiProgress(1)
+      interval = setInterval(() => {
+        setAiProgress(prev => (prev < 4 ? prev + 1 : 4))
+      }, 4000)
+    } else {
+      setAiProgress(0)
+    }
+    return () => clearInterval(interval)
+  }, [generatingSyllabus, generatingLesson])
+
+  const getAiProgressText = () => {
+    if (generatingSyllabus) {
+      switch (aiProgress) {
+        case 1: return '📋 Đang đọc dữ liệu sách giáo khoa...'
+        case 2: return '🧠 Thiết kế cấu trúc lộ trình...'
+        case 3: return '✨ Hoàn thiện mô tả các buổi học...'
+        default: return 'Đang thiết kế lộ trình học...'
+      }
+    } else if (generatingLesson) {
+      switch (aiProgress) {
+        case 1: return '📖 Đang nạp nội dung tham khảo...'
+        case 2: return '📝 Soạn thảo nội dung bài giảng & Flashcards...'
+        case 3: return '💡 Thiết kế sơ đồ tư duy bằng Mermaid...'
+        case 4: return '🔍 Biên soạn bộ đề thi 15 câu trắc nghiệm & tự luận...'
+        default: return 'Đang soạn thảo bài học...'
+      }
+    }
+    return ''
+  }
 
   if (loading) {
     return (
@@ -599,7 +633,7 @@ export default function ParentDashboard() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top Header */}
-      <header className="h-16 border-b border-slate-800/80 glass-panel flex items-center justify-between px-6 z-20">
+      <header className="border-b border-slate-800/80 glass-panel flex flex-col md:flex-row items-center justify-between py-3 px-6 h-auto md:h-16 gap-3 z-20">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center glow-indigo">
             <GraduationCap className="w-6 h-6 text-slate-100" />
@@ -645,7 +679,7 @@ export default function ParentDashboard() {
       </header>
 
       {/* Main Grid Workspace */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-y-auto lg:overflow-hidden">
         {/* Sidebar chat & Subject panel */}
         <aside className="lg:col-span-1 border-r border-slate-800/80 bg-slate-900/40 p-5 flex flex-col gap-6 overflow-y-auto">
           {/* Subjects selector */}
@@ -1569,6 +1603,20 @@ export default function ParentDashboard() {
                 Bắt đầu soạn bằng AI
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating AI Progress Indicator */}
+      {(generatingSyllabus || generatingLesson) && (
+        <div className="fixed bottom-6 left-6 z-[9999] bg-slate-900/95 backdrop-blur border border-indigo-500/30 px-4 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in-bottom">
+          <div className="relative flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-indigo-500/10 border-t-indigo-500 animate-spin" />
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400 absolute animate-pulse" />
+          </div>
+          <div className="text-xs">
+            <span className="font-bold text-slate-200 block">Hệ thống AI đang làm việc</span>
+            <span className="text-slate-400 mt-0.5 block animate-pulse">{getAiProgressText()}</span>
           </div>
         </div>
       )}
