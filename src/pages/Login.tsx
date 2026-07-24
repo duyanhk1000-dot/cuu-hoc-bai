@@ -1,36 +1,54 @@
 import React, { useState } from 'react'
-import { GraduationCap, Lock, User as UserIcon, Loader2 } from 'lucide-react'
-import { dataService, User } from '../dataService'
+import { GraduationCap, Lock, Mail, Loader2 } from 'lucide-react'
+import { useAuth } from '../components/AuthProvider'
 
-interface LoginProps {
-  onLogin: (user: User) => void;
-}
-
-export default function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState('')
+export default function Login() {
+  const { login } = useAuth()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const validateEmail = (inputEmail: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return re.test(inputEmail)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username.trim() || !password.trim()) {
-      setError('Vui lòng điền đầy đủ tên đăng nhập và mật khẩu!')
+    setError('')
+
+    const trimmedEmail = email.trim()
+    const trimmedPassword = password.trim()
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setError('Vui lòng điền đầy đủ email và mật khẩu!')
+      return
+    }
+
+    if (!validateEmail(trimmedEmail)) {
+      setError('Email không hợp lệ! Vui lòng nhập đúng định dạng email.')
       return
     }
 
     setLoading(true)
-    setError('')
 
     try {
-      const verifiedUser = await dataService.verifyUser(username.trim(), password.trim())
-      if (verifiedUser) {
-        onLogin(verifiedUser)
-      } else {
-        setError('Sai tên đăng nhập hoặc mật khẩu!')
+      const { error: loginError } = await login(trimmedEmail, trimmedPassword)
+      if (loginError) {
+        const errMsg = loginError.message.toLowerCase()
+        if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid credentials')) {
+          setError('Sai email hoặc mật khẩu!')
+        } else if (errMsg.includes('email') || errMsg.includes('invalid email')) {
+          setError('Email không hợp lệ!')
+        } else if (errMsg.includes('network') || errMsg.includes('fetch') || errMsg.includes('failed to fetch')) {
+          setError('Lỗi kết nối mạng! Vui lòng kiểm tra lại đường truyền.')
+        } else {
+          setError('Đăng nhập thất bại! Vui lòng thử lại sau.')
+        }
       }
     } catch {
-      setError('Đã xảy ra lỗi kết nối cơ sở dữ liệu!')
+      setError('Đã xảy ra lỗi kết nối mạng!')
     } finally {
       setLoading(false)
     }
@@ -61,14 +79,14 @@ export default function Login({ onLogin }: LoginProps) {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">Tên đăng nhập</label>
+            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">Email đăng nhập</label>
             <div className="relative">
-              <UserIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              <Mail className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nhập tên đăng nhập (ví dụ: phuhuynh)"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Nhập email đăng nhập (ví dụ: phuhuynh@example.com)"
                 className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 disabled={loading}
               />
@@ -83,7 +101,7 @@ export default function Login({ onLogin }: LoginProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu (ví dụ: 123456)"
+                placeholder="Nhập mật khẩu"
                 className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 disabled={loading}
               />
