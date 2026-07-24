@@ -372,23 +372,29 @@ export const dataService = {
 
   // Save API keys for a user (sync to Supabase if configured, else fallback to localUsers)
   async saveUserApiKeys(usernameOrId: string, apiKeys: string[]): Promise<boolean> {
-    const keysStr = JSON.stringify(apiKeys);
-    if (isSupabaseConfigured) {
+    const sessionMock = localStorage.getItem('family_learning_mock_user')
+    const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token;
+    
+    if (token) {
       try {
-        const { error } = await supabase
-          .from('users')
-          .update({ api_keys: keysStr })
-          .or(`auth_user_id.eq.${usernameOrId},username.eq.${usernameOrId}`);
-        return !error;
+        const response = await fetch('/api/manage-keys', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ apiKeys })
+        });
+        return response.ok;
       } catch (err) {
-        console.error("Error saving API keys to Supabase:", err);
+        console.error("Error saving API keys via API:", err);
         return false;
       }
     } else {
       const users = getLocal('local_users', []);
       const index = users.findIndex((u: any) => u.username === usernameOrId || u.auth_user_id === usernameOrId);
       if (index !== -1) {
-        users[index].api_keys = keysStr;
+        users[index].api_keys = JSON.stringify(apiKeys);
         setLocal('local_users', users);
         return true;
       }
@@ -398,17 +404,24 @@ export const dataService = {
 
   // Get API keys for a user
   async getUserApiKeys(usernameOrId: string): Promise<string[]> {
-    if (isSupabaseConfigured) {
+    const sessionMock = localStorage.getItem('family_learning_mock_user')
+    const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token;
+    
+    if (token) {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('api_keys')
-          .or(`auth_user_id.eq.${usernameOrId},username.eq.${usernameOrId}`)
-          .maybeSingle();
-        if (error || !data || !data.api_keys) return [];
-        return JSON.parse(data.api_keys);
+        const response = await fetch('/api/manage-keys', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const resData = await response.json();
+          return resData.apiKeys || [];
+        }
+        return [];
       } catch (err) {
-        console.error("Error getting API keys from Supabase:", err);
+        console.error("Error getting API keys via API:", err);
         return [];
       }
     } else {

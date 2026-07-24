@@ -348,13 +348,18 @@ export default function ParentDashboard() {
           throw new Error('Tải lên máy chủ lưu trữ Supabase Storage bị chặn/thất bại và tệp tin của bạn quá lớn (> 4MB) để có thể gửi trực tiếp sang AI. Vui lòng tạm thời tắt Brave Shields (nếu dùng Brave), tắt các trình chặn quảng cáo khác hoặc thử lại với file PDF ngắn dưới 4MB.')
         }
 
+        const sessionMock = localStorage.getItem('family_learning_mock_user')
+        const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token
+
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ 
             fileUrl: publicUrl || undefined,
-            fileData: publicUrl ? undefined : base64Data,
-            apiKeys: apiKeys
+            fileData: publicUrl ? undefined : base64Data
           })
         })
         
@@ -386,14 +391,19 @@ export default function ParentDashboard() {
 
     setGeneratingSyllabus(true)
     try {
+      const sessionMock = localStorage.getItem('family_learning_mock_user')
+      const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token
+
       const response = await fetch('/api/generate-syllabus', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           subject: newSubject.trim(),
           textbookContent: textbookContent.trim(),
-          totalLessons: totalLessons,
-          apiKeys: apiKeys
+          totalLessons: totalLessons
         })
       })
       const data = await response.json()
@@ -450,16 +460,21 @@ export default function ParentDashboard() {
     setGeneratingLessonNum(lessonNum)
     
     try {
+      const sessionMock = localStorage.getItem('family_learning_mock_user')
+      const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token
+
       const response = await fetch('/api/generate-lesson', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           subject: selectedSubject,
           syllabus: syllabus.content,
           lessonNumber: lessonNum,
           totalLessons: syllabus.total_lessons,
           textbookContent: syllabus.textbook_content || '',
-          apiKeys: apiKeys,
           parentFeedback: feedback,
           lessonReferenceText: lessonReferenceText.trim()
         })

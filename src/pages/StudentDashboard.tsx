@@ -3,6 +3,7 @@ import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, Help
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
+import { supabase } from '../supabaseClient'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -270,9 +271,15 @@ export default function StudentDashboard() {
     }
 
     try {
+      const sessionMock = localStorage.getItem('family_learning_mock_user')
+      const token = sessionMock ? 'mock-student-id' : (await supabase.auth.getSession()).data.session?.access_token
+
       const response = await fetch('/api/grade-lesson', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           questions: questions,
           studentAnswers: answers
