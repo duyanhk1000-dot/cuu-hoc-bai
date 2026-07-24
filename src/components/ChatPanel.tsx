@@ -26,7 +26,7 @@ const renderAvatar = (roleOrUsername: string, sizeClass = "w-7 h-7") => {
   )
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({
+export const ChatPanel = React.memo(({
   isOpen,
   setIsOpen,
   messages,
@@ -35,7 +35,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onSendMessage,
   username,
   placeholder = "Nhắn tin..."
-}) => {
+}: ChatPanelProps) => {
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Scroll chat to bottom when messages or open state change
@@ -100,4 +100,4 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       )}
     </>
   )
-}
+})

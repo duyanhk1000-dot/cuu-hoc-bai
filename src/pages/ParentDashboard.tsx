@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
@@ -8,6 +8,7 @@ import DOMPurify from 'dompurify'
 import { useChat } from '../hooks/useChat'
 import { AlertModal } from '../components/AlertModal'
 import { ChatPanel } from '../components/ChatPanel'
+import { loadScript, loadStyle } from '../utils/lazyScriptLoader'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -69,11 +70,11 @@ export default function ParentDashboard() {
   // Custom Hook
   const { messages, newMsg, setNewMsg, isChatOpen, setIsChatOpen, sendMessage } = useChat()
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile?.username) return
     await sendMessage(profile.username)
-  }
+  }, [profile?.username, sendMessage])
 
   // Creation forms state
   const [newSubject, setNewSubject] = useState('')
@@ -93,6 +94,9 @@ export default function ParentDashboard() {
   const [reviewTab, setReviewTab] = useState<'lecture' | 'flashcards' | 'questions' | 'mindmap'>('lecture')
   const [parentFeedback, setParentFeedback] = useState('')
   const [publishingLesson, setPublishingLesson] = useState(false)
+  
+  // KaTeX load state
+  const [kaTeXLoaded, setKaTeXLoaded] = useState(false)
 
   if (loading) {
     return (
@@ -116,19 +120,29 @@ export default function ParentDashboard() {
 
   // Trigger Mermaid diagram rendering
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if ((window as any).mermaid) {
-        try {
-          (window as any).mermaid.initialize({ startOnLoad: false, theme: 'dark' });
-          (window as any).mermaid.run({
-            querySelector: '.mermaid',
-          });
-        } catch (err) {
-          console.error('Mermaid render error:', err);
+    if (!reviewingLesson || reviewTab !== 'mindmap') return
+
+    let isMounted = true
+    const runMermaid = async () => {
+      try {
+        if (!(window as any).mermaid) {
+          await loadScript('https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js')
         }
+        if (!isMounted) return
+
+        const m = (window as any).mermaid
+        m.initialize({ startOnLoad: false, theme: 'dark' })
+        await m.run({ querySelector: '.mermaid' })
+      } catch (err) {
+        console.error('Failed to load or run Mermaid:', err)
       }
-    }, 300);
-    return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(runMermaid, 300)
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
+    }
   }, [activeTab, syllabus, lessons, reviewingLesson, reviewTab])
 
   // API Key (saved in sessionState equivalent)
@@ -187,6 +201,25 @@ export default function ParentDashboard() {
     loadAndSyncApiKeys();
   }, [profile.auth_user_id])
 
+  // Load KaTeX dynamic assets on mount
+  useEffect(() => {
+    const loadKaTeX = async () => {
+      try {
+        if (!(window as any).katex) {
+          await loadStyle('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css')
+          await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js')
+          await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js')
+          setKaTeXLoaded(true)
+        } else {
+          setKaTeXLoaded(true)
+        }
+      } catch (err) {
+        console.error('Failed to load KaTeX dynamically:', err)
+      }
+    }
+    loadKaTeX()
+  }, [])
+
   // Load syllabus and lessons when subject changes
   useEffect(() => {
     if (selectedSubject) {
@@ -199,6 +232,8 @@ export default function ParentDashboard() {
 
   // Trigger KaTeX math rendering
   useEffect(() => {
+    if (!kaTeXLoaded) return
+
     const timer = setTimeout(() => {
       if ((window as any).renderMathInElement) {
         (window as any).renderMathInElement(document.body, {
@@ -211,7 +246,7 @@ export default function ParentDashboard() {
       }
     }, 200)
     return () => clearTimeout(timer)
-  }, [activeTab, syllabus, lessons, reviewingLesson, reviewTab, selectedGrade])
+  }, [activeTab, syllabus, lessons, reviewingLesson, reviewTab, selectedGrade, kaTeXLoaded])
   const loadSubjects = async () => {
     const list = await dataService.getSubjects()
     setSubjects(list)
@@ -226,10 +261,16 @@ export default function ParentDashboard() {
   }
 
   const loadSyllabusAndLessons = async (subject: string) => {
-    const syl = await dataService.getSyllabus(subject)
-    setSyllabus(syl)
-    const lesList = await dataService.getLessons(subject)
-    setLessons(lesList)
+    try {
+      const [syl, lesList] = await Promise.all([
+        dataService.getSyllabus(subject),
+        dataService.getLessons(subject)
+      ])
+      setSyllabus(syl)
+      setLessons(lesList)
+    } catch (err) {
+      console.error('Failed to load syllabus and lessons in parallel:', err)
+    }
   }
 
   const handleDeleteSubject = async (sub: string, e: React.MouseEvent) => {

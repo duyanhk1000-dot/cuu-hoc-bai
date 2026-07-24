@@ -6,7 +6,7 @@ interface AlertModalProps {
   onClose: () => void
 }
 
-export const AlertModal: React.FC<AlertModalProps> = ({ message, onClose }) => {
+export const AlertModal = React.memo(({ message, onClose }: AlertModalProps) => {
   if (!message) return null
 
   return (
@@ -28,4 +28,4 @@ export const AlertModal: React.FC<AlertModalProps> = ({ message, onClose }) => {
       </div>
     </div>
   )
-}
+})
