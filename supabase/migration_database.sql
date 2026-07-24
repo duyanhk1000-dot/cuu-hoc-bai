@@ -3,6 +3,9 @@
 -- Hướng dẫn: Chạy script này trong SQL Editor trên Supabase Dashboard.
 -- =======================================================
 
+-- 0. BỔ SUNG CỘT auth_user_id VÀO BẢNG USERS NẾU CHƯA CÓ
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS auth_user_id UUID UNIQUE;
+
 -- 1. TẠO CÁC CHỈ MỤC (INDEXES) ĐỂ TỐI ƯU HÓA HIỆU NĂNG TRUY VẤN
 CREATE INDEX IF NOT EXISTS idx_lessons_subject_number 
     ON public.lessons(subject, lesson_number);
