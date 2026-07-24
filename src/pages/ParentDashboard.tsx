@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
@@ -922,6 +922,7 @@ export default function ParentDashboard() {
                   {Array.from({ length: syllabus.total_lessons }).map((_, idx) => {
                     const lessonNum = idx + 1;
                     const existingLesson = lessons.find(l => l.lesson_number === lessonNum);
+                    const hasTakenTest = grades.some(g => g.subject === selectedSubject && g.lesson_number === lessonNum);
                     
                     return (
                       <div
@@ -943,6 +944,11 @@ export default function ParentDashboard() {
                                   {existingLesson.is_published ? (
                                     <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
                                       <CheckCircle className="w-3 h-3" /> Đã đăng
+                                      {hasTakenTest && (
+                                        <span className="flex items-center gap-0.5 border-l border-emerald-500/30 pl-1.5 ml-1 text-emerald-300" title="Học sinh đã làm bài thi">
+                                          <PenTool className="w-2.5 h-2.5 animate-pulse" />
+                                        </span>
+                                      )}
                                     </span>
                                   ) : (
                                     <span className="text-[10px] bg-amber-500/10 border border-amber-500/25 text-amber-400 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
