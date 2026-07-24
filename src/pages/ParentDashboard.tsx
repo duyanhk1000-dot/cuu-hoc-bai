@@ -3,9 +3,13 @@ import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
+import { useAuth } from '../components/AuthProvider'
 
-const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
-  const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
+const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
+  const isParent = roleOrUsername === 'parent' || 
+                   roleOrUsername === 'phuhuynh' || 
+                   roleOrUsername.toLowerCase().includes('phu') || 
+                   roleOrUsername.toLowerCase().includes('parent');
   if (isParent) {
     return (
       <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-slate-100 shadow-md border border-indigo-400/30 overflow-hidden flex-shrink-0`}>
@@ -27,12 +31,13 @@ const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
   }
 };
 
-interface ParentDashboardProps {
-  user: User;
-  onLogout: () => void;
-}
+export default function ParentDashboard() {
+  const { user, profile, loading, logout } = useAuth()
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
+  const alert = (msg: string) => {
+    setAlertMessage(msg)
+  }
 
-export default function ParentDashboard({ user, onLogout }: ParentDashboardProps) {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades'>('syllabus')
   
@@ -82,7 +87,18 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const [parentFeedback, setParentFeedback] = useState('')
   const [publishingLesson, setPublishingLesson] = useState(false)
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-100">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+        <p className="text-slate-400 text-sm font-medium">Đang tải thông tin...</p>
+      </div>
+    )
+  }
 
+  if (!user || !profile) {
+    return <p className="text-slate-400 text-center py-12">Vui lòng đăng nhập!</p>
+  }
 
   // Sync feedback when reviewing lesson changes
   useEffect(() => {
@@ -137,7 +153,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     const updated = [...apiKeys, trimmed];
     setApiKeys(updated);
     localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
-    await dataService.saveUserApiKeys(user.username, updated);
+    await dataService.saveUserApiKeys(profile.auth_user_id!, updated);
     setNewKeyInput('');
   };
 
@@ -145,7 +161,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     const updated = apiKeys.filter((_, i) => i !== index);
     setApiKeys(updated);
     localStorage.setItem('gemini_api_keys', JSON.stringify(updated));
-    await dataService.saveUserApiKeys(user.username, updated);
+    await dataService.saveUserApiKeys(profile.auth_user_id!, updated);
   };
 
   // Load initial data
@@ -156,7 +172,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     
     // Load keys từ Supabase và đồng bộ với localStorage
     const loadAndSyncApiKeys = async () => {
-      const dbKeys = await dataService.getUserApiKeys(user.username);
+      const dbKeys = await dataService.getUserApiKeys(profile.auth_user_id!);
       if (dbKeys && dbKeys.length > 0) {
         setApiKeys(dbKeys);
         localStorage.setItem('gemini_api_keys', JSON.stringify(dbKeys));
@@ -167,7 +183,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
     // Poll messages every 5 seconds
     const interval = setInterval(loadMessages, 5000)
     return () => clearInterval(interval)
-  }, [user.username])
+  }, [profile.auth_user_id])
 
   // Load syllabus and lessons when subject changes
   useEffect(() => {
@@ -272,7 +288,7 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMsg.trim()) return
-    await dataService.sendMessage(user.username, newMsg.trim())
+    await dataService.sendMessage(profile.username, newMsg.trim())
     setNewMsg('')
     loadMessages()
   }
@@ -581,11 +597,11 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
           </button>
 
           <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
-            {renderAvatar(user.username, "w-6 h-6")}
-            <span>Xin chào, <strong className="text-indigo-300">{user.username}</strong></span>
+            {renderAvatar(profile.role, "w-6 h-6")}
+            <span>Xin chào, <strong className="text-indigo-300">{profile.username}</strong></span>
           </span>
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-3 py-1.5 rounded-lg border border-rose-500/20 transition-all text-sm"
           >
             <LogOut className="w-4 h-4" />
@@ -1390,10 +1406,10 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
             {/* Message Box */}
             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin bg-slate-950/10">
               {messages.map((m) => (
-                <div key={m.id} className={`flex flex-col max-w-[85%] ${m.sender === user.username ? 'self-end items-end' : 'self-start items-start'}`}>
+                <div key={m.id} className={`flex flex-col max-w-[85%] ${m.sender === profile.username ? 'self-end items-end' : 'self-start items-start'}`}>
                   <span className="text-[9px] text-slate-500 mb-0.5">{m.sender}</span>
                   <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                    m.sender === user.username
+                    m.sender === profile.username
                       ? 'bg-indigo-600 text-slate-100 rounded-tr-none'
                       : 'bg-slate-800 text-slate-200 rounded-tl-none'
                   }`}>
@@ -1567,6 +1583,27 @@ export default function ParentDashboard({ user, onLogout }: ParentDashboardProps
                 Bắt đầu soạn bằng AI
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="text-sm font-bold text-white">Thông báo từ hệ thống</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">{alertMessage}</p>
+            </div>
+            <button 
+              onClick={() => setAlertMessage(null)}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-semibold transition-all w-full shadow-md shadow-indigo-600/10"
+            >
+              Đồng ý
+            </button>
           </div>
         </div>
       )}

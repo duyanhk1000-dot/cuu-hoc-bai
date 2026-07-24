@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message } from '../dataService'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
+import { useAuth } from '../components/AuthProvider'
 
-const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
-  const isParent = username === 'phuhuynh' || username.toLowerCase().includes('parent') || username.toLowerCase().includes('phu');
+const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
+  const isParent = roleOrUsername === 'parent' || 
+                   roleOrUsername === 'phuhuynh' || 
+                   roleOrUsername.toLowerCase().includes('phu') || 
+                   roleOrUsername.toLowerCase().includes('parent');
   if (isParent) {
     return (
       <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-slate-100 shadow-md border border-indigo-400/30 overflow-hidden flex-shrink-0`}>
@@ -26,12 +30,13 @@ const renderAvatar = (username: string, sizeClass = "w-8 h-8") => {
   }
 };
 
-interface StudentDashboardProps {
-  user: User;
-  onLogout: () => void;
-}
+export default function StudentDashboard() {
+  const { user, profile, loading, logout } = useAuth()
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
+  const alert = (msg: string) => {
+    setAlertMessage(msg)
+  }
 
-export default function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -80,6 +85,19 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
   const [newMsg, setNewMsg] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-100">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+        <p className="text-slate-400 text-sm font-medium">Đang tải thông tin...</p>
+      </div>
+    )
+  }
+
+  if (!user || !profile) {
+    return <p className="text-slate-400 text-center py-12">Vui lòng đăng nhập!</p>
+  }
 
   // Load initial data
   useEffect(() => {
@@ -167,7 +185,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
   }
 
   const loadGrades = async () => {
-    const list = await dataService.getGrades(user.username)
+    const list = await dataService.getGrades(profile.username)
     setGrades(list)
   }
 
@@ -186,7 +204,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMsg.trim()) return
-    await dataService.sendMessage(user.username, newMsg.trim())
+    await dataService.sendMessage(profile.username, newMsg.trim())
     setNewMsg('')
     loadMessages()
   }
@@ -265,7 +283,7 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
         setTestResult(data)
         // Save score to DB
         await dataService.saveGrade({
-          student_username: user.username,
+          student_username: profile.username,
           lesson_id: activeLesson.id!,
           answers: JSON.stringify(answers),
           score: data.total_score,
@@ -375,11 +393,11 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
           </button>
 
           <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
-            {renderAvatar(user.username, "w-6 h-6")}
-            <span>Học sinh: <strong className="text-indigo-300">{user.username}</strong></span>
+            {renderAvatar(profile.role, "w-6 h-6")}
+            <span>Học sinh: <strong className="text-indigo-300">{profile.username}</strong></span>
           </span>
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-3 py-1.5 rounded-lg border border-rose-500/20 transition-all text-sm"
           >
             <LogOut className="w-4 h-4" />
@@ -1067,12 +1085,12 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
           {/* Messages box */}
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin">
             {messages.map((m) => (
-              <div key={m.id} className={`flex items-start gap-2 max-w-[85%] ${m.sender === user.username ? 'self-end flex-row-reverse' : 'self-start'}`}>
+              <div key={m.id} className={`flex items-start gap-2 max-w-[85%] ${m.sender === profile.username ? 'self-end flex-row-reverse' : 'self-start'}`}>
                 {renderAvatar(m.sender, "w-7 h-7")}
-                <div className={`flex flex-col ${m.sender === user.username ? 'items-end' : 'items-start'}`}>
+                <div className={`flex flex-col ${m.sender === profile.username ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] text-slate-500 mb-0.5">{m.sender}</span>
                   <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                    m.sender === user.username
+                    m.sender === profile.username
                       ? 'bg-indigo-600 text-slate-100 rounded-tr-none'
                       : 'bg-slate-800 text-slate-200 rounded-tl-none'
                   }`}>
@@ -1097,6 +1115,27 @@ export default function StudentDashboard({ user, onLogout }: StudentDashboardPro
               <Send className="w-4 h-4" />
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="text-sm font-bold text-white">Thông báo từ hệ thống</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">{alertMessage}</p>
+            </div>
+            <button 
+              onClick={() => setAlertMessage(null)}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-semibold transition-all w-full shadow-md shadow-indigo-600/10"
+            >
+              Đồng ý
+            </button>
+          </div>
         </div>
       )}
     </div>

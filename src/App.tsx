@@ -23,18 +23,12 @@ function AppContent() {
     return <Login />
   }
 
-  // 3. Chuyển đổi dữ liệu profile thành cấu trúc tương thích với Dashboards cũ (legacyUser)
-  const legacyUser = {
-    username: profile.username,
-    role: profile.role
-  }
-
   return (
     <main className="w-full">
       {profile.role === 'parent' ? (
-        <ParentDashboard user={legacyUser} onLogout={logout} />
+        <ParentDashboard />
       ) : (
-        <StudentDashboard user={legacyUser} onLogout={logout} />
+        <StudentDashboard />
       )}
     </main>
   )
