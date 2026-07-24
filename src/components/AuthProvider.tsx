@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { authService } from '../services/authService'
+import { dataService } from '../dataService'
 import { AuthUser, UserProfile, AuthContextType } from '../types/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -30,6 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Kiểm tra session ban đầu khi mount component
     const initializeAuth = async () => {
       try {
+        const savedMockUser = localStorage.getItem('family_learning_mock_user')
+        const savedMockProfile = localStorage.getItem('family_learning_mock_profile')
+        
+        if (savedMockUser && savedMockProfile) {
+          setUser(JSON.parse(savedMockUser))
+          setProfile(JSON.parse(savedMockProfile))
+          setLoading(false)
+          return
+        }
+
         const { data: { session } } = await authService.getSession()
         if (session?.user) {
           setUser(session.user)
@@ -55,8 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session.user)
           await loadProfile(session.user.id)
         } else {
-          setUser(null)
-          setProfile(null)
+          // Chỉ xóa nếu không có mock session đang hoạt động
+          if (!localStorage.getItem('family_learning_mock_user')) {
+            setUser(null)
+            setProfile(null)
+          }
         }
         setLoading(false)
       }
@@ -69,10 +83,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   // Khai báo hàm đăng nhập wrapper
-  const login = async (email: string, password: string) => {
+  const login = async (emailOrUsername: string, password: string) => {
     setLoading(true)
     try {
-      const { data, error } = await authService.login(email, password)
+      // Fallback: Đăng nhập bằng tên người dùng đơn giản (phuhuynh, hocsinh)
+      if (!emailOrUsername.includes('@')) {
+        const verifiedUser = await dataService.verifyUser(emailOrUsername, password)
+        if (verifiedUser) {
+          const mockUser = {
+            id: emailOrUsername === 'phuhuynh' ? 'mock-parent-id' : 'mock-student-id',
+            email: `${emailOrUsername}@example.com`
+          } as any
+          const mockProfile = {
+            username: verifiedUser.username,
+            role: verifiedUser.role,
+            auth_user_id: mockUser.id
+          }
+          setUser(mockUser)
+          setProfile(mockProfile)
+          
+          // Lưu trạng thái mock session để không bị mất khi reload
+          localStorage.setItem('family_learning_mock_user', JSON.stringify(mockUser))
+          localStorage.setItem('family_learning_mock_profile', JSON.stringify(mockProfile))
+          
+          setLoading(false)
+          return { error: null }
+        } else {
+          setLoading(false)
+          return { error: new Error('Sai tên đăng nhập hoặc mật khẩu!') }
+        }
+      }
+
+      // Đăng nhập bình thường bằng Supabase Auth
+      const { data, error } = await authService.login(emailOrUsername, password)
       if (error) {
         setLoading(false)
         return { error }
@@ -80,6 +123,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data?.user) {
         setUser(data.user)
         await loadProfile(data.user.id)
+        
+        // Xóa mock session nếu có
+        localStorage.removeItem('family_learning_mock_user')
+        localStorage.removeItem('family_learning_mock_profile')
       }
       setLoading(false)
       return { error: null }
@@ -93,6 +140,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setLoading(true)
     try {
+      // Xóa mock session
+      localStorage.removeItem('family_learning_mock_user')
+      localStorage.removeItem('family_learning_mock_profile')
+
       const { error } = await authService.logout()
       setUser(null)
       setProfile(null)

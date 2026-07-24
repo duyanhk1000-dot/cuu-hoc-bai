@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { GraduationCap, Lock, Mail, Loader2 } from 'lucide-react'
+import { GraduationCap, Lock, User as UserIcon, Loader2 } from 'lucide-react'
 import { useAuth } from '../components/AuthProvider'
 
 export default function Login() {
   const { login } = useAuth()
-  const [email, setEmail] = useState('')
+  const [emailOrUsername, setEmailOrUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -18,33 +18,34 @@ export default function Login() {
     e.preventDefault()
     setError('')
 
-    const trimmedEmail = email.trim()
+    const trimmedInput = emailOrUsername.trim()
     const trimmedPassword = password.trim()
 
-    if (!trimmedEmail || !trimmedPassword) {
-      setError('Vui lòng điền đầy đủ email và mật khẩu!')
+    if (!trimmedInput || !trimmedPassword) {
+      setError('Vui lòng điền đầy đủ thông tin đăng nhập và mật khẩu!')
       return
     }
 
-    if (!validateEmail(trimmedEmail)) {
-      setError('Email không hợp lệ! Vui lòng nhập đúng định dạng email.')
+    // Nếu người dùng nhập địa chỉ email (chứa @), ta kiểm tra định dạng email
+    if (trimmedInput.includes('@') && !validateEmail(trimmedInput)) {
+      setError('Định dạng email không hợp lệ!')
       return
     }
 
     setLoading(true)
 
     try {
-      const { error: loginError } = await login(trimmedEmail, trimmedPassword)
+      const { error: loginError } = await login(trimmedInput, trimmedPassword)
       if (loginError) {
         const errMsg = loginError.message.toLowerCase()
-        if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid credentials')) {
-          setError('Sai email hoặc mật khẩu!')
+        if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid credentials') || errMsg.includes('sai tên')) {
+          setError('Sai tên đăng nhập/email hoặc mật khẩu!')
         } else if (errMsg.includes('email') || errMsg.includes('invalid email')) {
           setError('Email không hợp lệ!')
         } else if (errMsg.includes('network') || errMsg.includes('fetch') || errMsg.includes('failed to fetch')) {
           setError('Lỗi kết nối mạng! Vui lòng kiểm tra lại đường truyền.')
         } else {
-          setError('Đăng nhập thất bại! Vui lòng thử lại sau.')
+          setError(loginError.message || 'Đăng nhập thất bại!')
         }
       }
     } catch {
@@ -79,14 +80,14 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">Email đăng nhập</label>
+            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">Tên đăng nhập hoặc Email</label>
             <div className="relative">
-              <Mail className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              <UserIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Nhập email đăng nhập (ví dụ: phuhuynh@example.com)"
+                type="text"
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
+                placeholder="Nhập phuhuynh, hocsinh hoặc email"
                 className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 disabled={loading}
               />
