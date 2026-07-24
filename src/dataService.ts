@@ -464,16 +464,27 @@ export const dataService = {
           .select('*')
           .eq('student_username', username)
           .maybeSingle();
-        if (data) return data as StudentPet;
+        if (data) {
+          if (data.current_level === 0 && data.current_exp === 0 && data.coins === 0) {
+            const updated = await supabase
+              .from('studentpets')
+              .update({ current_exp: 10, coins: 10 })
+              .eq('student_username', username)
+              .select()
+              .single();
+            if (updated.data) return updated.data as StudentPet;
+          }
+          return data as StudentPet;
+        }
         
         // If not exists, insert default
         const defaultPet: StudentPet = {
           student_username: username,
           pet_name: 'Hamster',
           current_level: 0,
-          current_exp: 0,
+          current_exp: 10,
           current_hp: 100,
-          coins: 0
+          coins: 10
         };
         const { data: inserted, error: insertError } = await supabase
           .from('studentpets')
@@ -496,14 +507,20 @@ export const dataService = {
         student_username: username,
         pet_name: 'Hamster',
         current_level: 0,
-        current_exp: 0,
+        current_exp: 10,
         current_hp: 100,
-        coins: 0,
+        coins: 10,
         equipped_hat: null,
         equipped_accessory: null
       };
       pets.push(found);
       setLocal('local_student_pets', pets);
+    } else {
+      if (found.current_level === 0 && found.current_exp === 0 && found.coins === 0) {
+        found.current_exp = 10;
+        found.coins = 10;
+        setLocal('local_student_pets', pets);
+      }
     }
     return found as StudentPet;
   },
