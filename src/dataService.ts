@@ -128,7 +128,7 @@ export const dataService = {
   // Syllabus: Get by subject
   async getSyllabus(subject: string): Promise<Syllabus | null> {
     if (isSupabaseConfigured) {
-      const { data } = await supabase.from('syllabus').select('*').eq('subject', subject).single();
+      const { data } = await supabase.from('syllabus').select('subject, content, textbook_content, pdf_file_path, total_lessons').eq('subject', subject).single();
       return data;
     } else {
       const syllabusList = getLocal('local_syllabus', []) as Syllabus[];
@@ -178,7 +178,7 @@ export const dataService = {
     if (isSupabaseConfigured) {
       let query = supabase
         .from('lessons')
-        .select('*')
+        .select('id, subject, lesson_number, title, lecture_content, questions, duration, flashcards, is_published, parent_feedback, infographic_url, infographic_prompt, infographic_content, mindmap')
         .eq('subject', subject);
       
       if (onlyPublished) {
@@ -235,10 +235,7 @@ export const dataService = {
     if (isSupabaseConfigured) {
       const { data } = await supabase
         .from('grades')
-        .select(`
-          *,
-          lessons (title, lesson_number, subject)
-        `)
+        .select('id, student_username, lesson_id, answers, score, ai_feedback, submitted_at, lessons(title, lesson_number, subject)')
         .eq('student_username', studentUsername)
         .order('submitted_at', { ascending: false });
       
@@ -271,10 +268,7 @@ export const dataService = {
     if (isSupabaseConfigured) {
       const { data } = await supabase
         .from('grades')
-        .select(`
-          *,
-          lessons (title, lesson_number, subject)
-        `)
+        .select('id, student_username, lesson_id, answers, score, ai_feedback, submitted_at, lessons(title, lesson_number, subject)')
         .order('submitted_at', { ascending: false });
       
       return (data || []).map((d: any) => ({
@@ -305,7 +299,7 @@ export const dataService = {
     if (isSupabaseConfigured) {
       const { data } = await supabase
         .from('messages')
-        .select('*')
+        .select('id, sender, message, created_at')
         .order('created_at', { ascending: true });
       return data || [];
     } else {
