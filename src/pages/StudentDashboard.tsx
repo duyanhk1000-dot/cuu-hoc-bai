@@ -5,6 +5,10 @@ import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer
 import { useAuth } from '../components/AuthProvider'
 import { supabase } from '../supabaseClient'
 import DOMPurify from 'dompurify'
+import { useChat } from '../hooks/useChat'
+import { useTimer } from '../hooks/useTimer'
+import { AlertModal } from '../components/AlertModal'
+import { ChatPanel } from '../components/ChatPanel'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -75,18 +79,22 @@ export default function StudentDashboard() {
   // Quiz states
   const [questions, setQuestions] = useState<any[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [timeLeft, setTimeLeft] = useState<number>(0)
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [submittingTest, setSubmittingTest] = useState(false)
 
   // Test result state
   const [testResult, setTestResult] = useState<any>(null)
 
-  // Chat state
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMsg, setNewMsg] = useState('')
-  const [isChatOpen, setIsChatOpen] = useState(false)
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  // Custom Hooks
+  const { messages, newMsg, setNewMsg, isChatOpen, setIsChatOpen, sendMessage } = useChat()
+  const { timeLeft, isTimerRunning, startTimer, stopTimer, resetTimer, formatTime } = useTimer(
+    () => handleSubmitTest(true)
+  )
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profile?.username) return
+    await sendMessage(profile.username)
+  }
 
   if (loading) {
     return (
@@ -105,17 +113,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     loadSubjects()
     loadGrades()
-    loadMessages()
-    
-    // Poll messages every 5 seconds
-    const interval = setInterval(loadMessages, 5000)
-    return () => clearInterval(interval)
   }, [])
-
-  // Scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
 
   // Load syllabus and lessons when subject changes
   useEffect(() => {
@@ -159,24 +157,7 @@ export default function StudentDashboard() {
     return () => clearTimeout(timer)
   }, [activeTab, selectedSubject, activeLesson, workspaceTab, currentFlashcardIdx, isFlipped, testResult])
 
-  // Scroll chat to bottom
-  useEffect(() => {
-    if (isChatOpen) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isChatOpen])
-  // Quiz Timer countdown logic
-  useEffect(() => {
-    let timerId: any
-    if (isTimerRunning && timeLeft > 0) {
-      timerId = setTimeout(() => setTimeLeft(prev => prev - 1), 1000)
-    } else if (isTimerRunning && timeLeft === 0) {
-      setIsTimerRunning(false)
-      // Auto submit test when time runs out!
-      handleSubmitTest(true)
-    }
-    return () => clearTimeout(timerId)
-  }, [isTimerRunning, timeLeft])
+
 
   const loadSubjects = async () => {
     const list = await dataService.getSubjects()
@@ -191,24 +172,11 @@ export default function StudentDashboard() {
     setGrades(list)
   }
 
-  const loadMessages = async () => {
-    const list = await dataService.getMessages()
-    setMessages(list)
-  }
-
   const loadSyllabusAndLessons = async (subject: string) => {
     const syl = await dataService.getSyllabus(subject)
     setSyllabus(syl)
     const lesList = await dataService.getLessons(subject)
     setLessons(lesList)
-  }
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMsg.trim()) return
-    await dataService.sendMessage(profile.username, newMsg.trim())
-    setNewMsg('')
-    loadMessages()
   }
 
   // Study workspace operations
@@ -242,14 +210,13 @@ export default function StudentDashboard() {
 
     // Reset results
     setTestResult(null)
-    setIsTimerRunning(false)
+    resetTimer()
   }
 
   const handleStartTest = () => {
     if (!activeLesson) return
     const durationSec = (activeLesson.duration || 45) * 60
-    setTimeLeft(durationSec)
-    setIsTimerRunning(true)
+    startTimer(durationSec)
     setWorkspaceTab('test')
   }
 
@@ -264,7 +231,7 @@ export default function StudentDashboard() {
     if (!activeLesson) return
     
     // Stop the timer
-    setIsTimerRunning(false)
+    stopTimer()
     setSubmittingTest(true)
 
     if (autoSubmit) {
@@ -308,12 +275,7 @@ export default function StudentDashboard() {
       setSubmittingTest(false)
     }
   }
-    // Formatting utility
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+
 
   // Parse Markdown Headings, Bold text, and Mermaid code blocks for clean presentation
   const renderFormattedText = (text: string) => {
@@ -455,11 +417,10 @@ export default function StudentDashboard() {
                 <p className="text-xs text-indigo-300 mt-0.5">Buổi {activeLesson.lesson_number}: {activeLesson.title}</p>
               </div>
 
-              {/* Back to list button */}
               <button
                 onClick={() => {
                   if (isTimerRunning && !confirm('Bạn đang trong bài kiểm tra. Trở lại sẽ nộp bài ngay lập tức! Bạn có đồng ý?')) return;
-                  setIsTimerRunning(false)
+                  stopTimer()
                   setActiveLesson(null)
                 }}
                 className="w-full py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
@@ -1074,78 +1035,23 @@ export default function StudentDashboard() {
         </section>
       </div>
 
-      {/* Floating Chat Bubble */}
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-full flex items-center justify-center text-slate-100 shadow-xl glow-indigo hover:scale-105 active:scale-95 transition-all z-45 border border-indigo-400/25"
-      >
-        {isChatOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
-      </button>
-
-      {/* Floating Chat Panel */}
-      {isChatOpen && (
-        <div className="fixed bottom-24 right-6 w-[360px] h-[450px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-45 animate-in slide-in-from-bottom duration-250">
-          <div className="flex items-center gap-2 border-b border-slate-800 p-4 bg-slate-950/20">
-            <MessageSquare className="w-4 h-4 text-indigo-400 animate-pulse" />
-            <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trò chuyện gia đình</h2>
-          </div>
-          
-          {/* Messages box */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex items-start gap-2 max-w-[85%] ${m.sender === profile.username ? 'self-end flex-row-reverse' : 'self-start'}`}>
-                {renderAvatar(m.sender, "w-7 h-7")}
-                <div className={`flex flex-col ${m.sender === profile.username ? 'items-end' : 'items-start'}`}>
-                  <span className="text-[10px] text-slate-500 mb-0.5">{m.sender}</span>
-                  <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                    m.sender === profile.username
-                      ? 'bg-indigo-600 text-slate-100 rounded-tr-none'
-                      : 'bg-slate-800 text-slate-200 rounded-tl-none'
-                  }`}>
-                    {m.message}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input bar */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-slate-950/30 flex gap-2">
-            <input
-              type="text"
-              placeholder="Nhắn tin cho bố mẹ..."
-              value={newMsg}
-              onChange={(e) => setNewMsg(e.target.value)}
-              className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none focus:border-indigo-500"
-            />
-            <button type="submit" className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all">
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
-      )}
+      {/* Floating Chat & Chat Panel */}
+      <ChatPanel
+        isOpen={isChatOpen}
+        setIsOpen={setIsChatOpen}
+        messages={messages}
+        newMsg={newMsg}
+        setNewMsg={setNewMsg}
+        onSendMessage={handleSendMessage}
+        username={profile.username}
+        placeholder="Nhắn tin cho bố mẹ..."
+      />
 
       {/* Custom Alert Modal */}
-      {alertMessage && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div className="space-y-1.5">
-              <h4 className="text-sm font-bold text-white">Thông báo từ hệ thống</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">{alertMessage}</p>
-            </div>
-            <button 
-              onClick={() => setAlertMessage(null)}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-semibold transition-all w-full shadow-md shadow-indigo-600/10"
-            >
-              Đồng ý
-            </button>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        message={alertMessage}
+        onClose={() => setAlertMessage(null)}
+      />
     </div>
   )
 }
