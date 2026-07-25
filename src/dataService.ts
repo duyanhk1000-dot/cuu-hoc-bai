@@ -957,7 +957,7 @@ export const dataService = {
     return drawings.filter((d: any) => d.is_exhibited && d.visibility === 'public')
   },
 
-  async hangDrawingOnExhibition(drawingId: string, username: string, imageUrl: string): Promise<{ claimed: boolean; expEarned: number }> {
+  async hangDrawingOnExhibition(drawingId: string, username: string, imageUrl: string, cdfContext?: string): Promise<{ claimed: boolean; expEarned: number }> {
     // 1. Treo tranh (is_exhibited = true, visibility = public)
     if (isSupabaseConfigured) {
       try {
@@ -986,7 +986,7 @@ export const dataService = {
       fetch('/api/analyze-drawing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ drawingId, imageUrl, studentUsername: username })
+        body: JSON.stringify({ drawingId, imageUrl, studentUsername: username, cdfContext })
       }).catch(err => console.error("Error trigger AI analysis:", err))
     } else {
       // Mock Local AI Social engine

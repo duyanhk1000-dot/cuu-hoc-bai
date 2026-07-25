@@ -22,7 +22,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { drawingId, imageUrl, studentUsername } = req.body || {}
+  const { drawingId, imageUrl, studentUsername, cdfContext } = req.body || {}
   if (!drawingId || !imageUrl || !studentUsername) {
     return res.status(400).json({ error: 'Missing parameters' })
   }
@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
     const base64Image = Buffer.from(imageBuffer).toString('base64')
 
     // 4. Gọi Gemini Vision phân tích 1 lần duy nhất
-    const visionPrompt = `
+    let visionPrompt = `
       Hãy phân tích hình ảnh nét vẽ của học sinh tiểu học này. 
       Trả về định dạng JSON thuần túy (không bọc trong markdown \`\`\`json) với các thuộc tính:
       - creativity_score: điểm số sáng tạo từ 1.0 đến 10.0.
@@ -60,7 +60,11 @@ export default async function handler(req: any, res: any) {
       - theme_category: một trong các chủ đề chính (animals, space, robot, nature, vehicles, fantasy, other).
       - color_palette: mảng các màu sắc nổi bật nhất (đỏ, xanh, vàng...).
       - story_seed: một ý tưởng câu chuyện ngắn (1-2 câu) gợi mở từ bức vẽ.
-    `
+    `;
+
+    if (cdfContext) {
+      visionPrompt += `\n\nThông tin chi tiết về cấu trúc vật thể và nhãn dán trong tranh (từ vector CDF JSON):\n${cdfContext}`;
+    }
 
     const visionResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',

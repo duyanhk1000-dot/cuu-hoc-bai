@@ -1,6 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react'
-import { Tldraw, useEditor, createShapeId } from 'tldraw'
-import 'tldraw/tldraw.css'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   ArrowLeft, 
   Palette, 
@@ -16,9 +14,28 @@ import {
   MessageSquare,
   Compass,
   TrendingUp,
-  Award
+  Award,
+  Pencil,
+  Paintbrush,
+  Highlighter,
+  Eraser,
+  Square,
+  Circle,
+  Minus,
+  Star,
+  Type,
+  MousePointer,
+  PaintBucket,
+  Undo2,
+  Redo2,
+  Trash2,
+  Download,
+  Upload
 } from 'lucide-react'
 import { dataService, CreativeDrawing, CreativeComment } from '../dataService'
+import { FabricEngine } from '../features/creative-hub/engine/FabricEngine'
+import { AIBridge } from '../features/creative-hub/engine/AIBridge'
+import { ToolType } from '../features/creative-hub/model/cdf.schema'
 
 // Import confetti library dynamically (or use standard CSS fallback animation if not available)
 // @ts-ignore
@@ -77,6 +94,14 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
   const [isExhibiting, setIsExhibiting] = useState(false)
   const [tldrawSnapshot, setTldrawSnapshot] = useState<any>(null)
   
+  // Canvas Engine Refs & States
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const engineRef = useRef<FabricEngine | null>(null)
+  const [activeTool, setActiveTool] = useState<ToolType>('select')
+  const [brushColor, setBrushColor] = useState('#E11D48') // Pink-rose default
+  const [brushWidth, setBrushWidth] = useState(6)
+  const [selectedStickerPack, setSelectedStickerPack] = useState<'animals' | 'space' | 'school'>('animals')
+
   // Confetti / Exp rewards state
   const [expEarnedNotice, setExpEarnedNotice] = useState<string | null>(null)
 
@@ -95,6 +120,64 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
   const [drawingAiComments, setDrawingAiComments] = useState<any[]>([])
   const [newCommentText, setNewCommentText] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+
+  // Sticker Packs Definitions
+  const STICKER_PACKS = {
+    animals: ['🐱', '🐶', '🦊', '🦁', '🐻', '🐼', '🐰', '🐯', '🐵', '🐸'],
+    space: ['🚀', '🌍', '🪐', '👨‍🚀', '👽', '🛸', '🛰️', '☄️', '🌞', '🌙'],
+    school: ['📚', '✏️', '🎒', '🎨', '🏫', '🎓', '🏆', '🔔', '📐', '🧪']
+  }
+
+  // Color Palette Definitions
+  const COLORS = [
+    '#EF4444', // Red
+    '#F97316', // Orange
+    '#F59E0B', // Yellow
+    '#10B981', // Green
+    '#3B82F6', // Blue
+    '#6366F1', // Indigo
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#F43F5E', // Rose
+    '#000000', // Black
+    '#FFFFFF'  // White
+  ]
+
+  // Initialize and Bind FabricEngine
+  useEffect(() => {
+    if (creativeTab === 'canvas' && canvasRef.current) {
+      const engine = new FabricEngine()
+      engine.init(canvasRef.current)
+      engineRef.current = engine
+
+      // Sync active configs
+      engine.setBrushColor(brushColor)
+      engine.setBrushWidth(brushWidth)
+      engine.setTool(activeTool)
+
+      // Import CDF JSON snapshot if loading old drawing
+      if (tldrawSnapshot) {
+        engine.importCDF(tldrawSnapshot)
+        setTldrawSnapshot(null) // Consume snapshot
+      }
+
+      // Handle Resize dynamically to wrap parent dimensions
+      const handleResize = () => {
+        if (canvasRef.current?.parentElement && engineRef.current) {
+          const parent = canvasRef.current.parentElement
+          engineRef.current.getRenderAdapter().setDimensions(parent.clientWidth, parent.clientHeight)
+        }
+      }
+      window.addEventListener('resize', handleResize)
+      setTimeout(handleResize, 100)
+
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        engine.destroy()
+        engineRef.current = null
+      }
+    }
+  }, [creativeTab])
 
   // Load My Drawings & Gallery
   useEffect(() => {
@@ -133,15 +216,61 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
     }
   }
 
+  // Toolbar configurations dispatcher
+  const handleToolChange = (tool: ToolType) => {
+    setActiveTool(tool)
+    if (engineRef.current) {
+      engineRef.current.setTool(tool)
+    }
+  }
+
+  const handleColorChange = (color: string) => {
+    setBrushColor(color)
+    if (engineRef.current) {
+      engineRef.current.setBrushColor(color)
+    }
+  }
+
+  const handleWidthChange = (width: number) => {
+    setBrushWidth(width)
+    if (engineRef.current) {
+      engineRef.current.setBrushWidth(width)
+    }
+  }
+
+  const handleUndo = () => {
+    if (engineRef.current) engineRef.current.undo()
+  }
+
+  const handleRedo = () => {
+    if (engineRef.current) engineRef.current.redo()
+  }
+
+  const handleClear = () => {
+    if (window.confirm('Con có chắc chắn muốn xóa hết để vẽ lại không?')) {
+      if (engineRef.current) engineRef.current.clear()
+    }
+  }
+
+  const handleAddEmojiSticker = (emoji: string) => {
+    if (engineRef.current) {
+      engineRef.current.addText(emoji, '#ffffff') // Render emoji as text layer
+    }
+  }
+
+  const handleDownloadCDF = () => {
+    if (engineRef.current) {
+      engineRef.current.downloadCDFFile(`${drawingTitle.trim().replace(/\s+/g, '_') || 'drawing'}.cdf`)
+    }
+  }
+
   // Save drawing logic
-  const handleSaveDrawing = async (editor: any) => {
-    if (isSaving) return
+  const handleSaveDrawing = async () => {
+    if (isSaving || !engineRef.current) return
     setIsSaving(true)
     try {
-      const snapshot = editor.store.getFilters().value
-      
-      // Export WebP image representation
-      const imageUrl = await captureWebpFromTldraw(editor)
+      const cdfData = engineRef.current.exportCDF()
+      const imageUrl = engineRef.current.exportWebP()
       
       const payload: Partial<CreativeDrawing> = {
         id: activeDrawing?.id || undefined,
@@ -153,11 +282,12 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
         visibility: activeDrawing?.visibility || 'private'
       }
 
-      const saved = await dataService.saveCreativeDrawing(payload, snapshot)
+      const saved = await dataService.saveCreativeDrawing(payload, cdfData)
       if (saved) {
         setActiveDrawing(saved)
         loadMyDrawings()
-        // Show subtle save indicator
+        
+        // Show save notification toast
         const notification = document.createElement('div')
         notification.className = 'fixed top-6 right-6 bg-slate-900 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-bold z-[100] shadow-2xl animate-fade-in'
         notification.innerText = '💾 Đã tự động lưu nháp!'
@@ -172,12 +302,12 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
   }
 
   // Hang drawing logic
-  const handleExhibitDrawing = async (editor: any) => {
-    if (isExhibiting) return
+  const handleExhibitDrawing = async () => {
+    if (isExhibiting || !engineRef.current) return
     setIsExhibiting(true)
     try {
-      const snapshot = editor.store.getFilters().value
-      const imageUrl = await captureWebpFromTldraw(editor)
+      const cdfData = engineRef.current.exportCDF()
+      const imageUrl = engineRef.current.exportWebP()
 
       // 1. Save metadata first
       const payload: Partial<CreativeDrawing> = {
@@ -190,14 +320,15 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
         visibility: 'public' as const
       }
 
-      const saved = await dataService.saveCreativeDrawing(payload, snapshot)
+      const saved = await dataService.saveCreativeDrawing(payload, cdfData)
       if (saved) {
         setActiveDrawing(saved)
         
-        // 2. Exhibition actions (EXP Reward and AI scheduler pipeline)
-        const rewardStatus = await dataService.hangDrawingOnExhibition(saved.id!, username, imageUrl || '')
+        // 2. AI Bridge Payload Preparation
+        const cdfContext = AIBridge.prepareCDFPayload(cdfData)
+        const rewardStatus = await dataService.hangDrawingOnExhibition(saved.id!, username, imageUrl || '', cdfContext)
         
-        // Render fireworks / confetti
+        // Render fireworks confetti
         confetti({
           particleCount: 150,
           spread: 80,
@@ -220,46 +351,6 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
     }
   }
 
-  // Convert tldraw canvas SVG representation to WebP client side
-  const captureWebpFromTldraw = async (editor: any): Promise<string | null> => {
-    const shapeIds = Array.from(editor.getCurrentPageShapeIds())
-    if (shapeIds.length === 0) return null
-
-    try {
-      const svg = await editor.getSvg(shapeIds)
-      if (!svg) return null
-      const svgString = new XMLSerializer().serializeToString(svg)
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-      const URL = window.URL || window.webkitURL || window
-      const blobURL = URL.createObjectURL(svgBlob)
-
-      return new Promise((resolve) => {
-        const image = new Image()
-        image.onload = () => {
-          const canvas = document.createElement('canvas')
-          // Add padding for aesthetic render margins
-          canvas.width = image.width + 40
-          canvas.height = image.height + 40
-          const context = canvas.getContext('2d')
-          if (context) {
-            context.fillStyle = '#ffffff'
-            context.fillRect(0, 0, canvas.width, canvas.height)
-            context.drawImage(image, 20, 20)
-            const webpDataUrl = canvas.toDataURL('image/webp', 0.8)
-            resolve(webpDataUrl)
-          } else {
-            resolve(null)
-          }
-        }
-        image.onerror = () => resolve(null)
-        image.src = blobURL
-      })
-    } catch (err) {
-      console.error("captureWebpFromTldraw error:", err)
-      return null
-    }
-  }
-
   // Opens an existing drawing on the canvas
   const handleOpenDrawing = async (drawing: CreativeDrawing) => {
     setActiveDrawing(drawing)
@@ -269,19 +360,6 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
     const snapshot = await dataService.getDrawingCanvasSnapshot(drawing.id!)
     setTldrawSnapshot(snapshot)
     setCreativeTab('canvas')
-  }
-
-  // Auto-load snapshot to Tldraw when active drawing changes
-  const onMountEditor = (editor: any) => {
-    if (tldrawSnapshot) {
-      editor.store.loadSnapshot(tldrawSnapshot)
-      setTldrawSnapshot(null) // Consume snapshot
-    } else {
-      const shapeIds = Array.from(editor.getCurrentPageShapeIds())
-      if (shapeIds.length > 0) {
-        editor.deleteShapes(shapeIds)
-      }
-    }
   }
 
   // Create a new fresh drawing board
@@ -322,7 +400,6 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
         const data = await response.json()
         setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
       } else {
-        // Local fallback assistant mock message
         setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sóc đang bận suy nghĩ một chút, con vẽ tiếp nhé! Chút nữa Sóc sẽ góp ý cho bức vẽ của con thật rực rỡ! 🎨🐿️' }])
       }
     } catch (err) {
@@ -336,7 +413,6 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
   // Like a drawing inside the Exhibition Modal
   const handleLikeDrawing = async (drawingId: string) => {
     await dataService.likeCreativeDrawing(drawingId, username)
-    // Refresh likes count in selectedDrawing view
     if (selectedDrawing && selectedDrawing.id === drawingId) {
       setSelectedDrawing(prev => prev ? { ...prev, likes_count: (prev.likes_count || 0) + 1 } : null)
     }
@@ -377,7 +453,7 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
             <span className="text-2xl animate-spin-slow">🎨</span>
             <div>
               <h1 className="text-sm font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500">
-                GÓC SÁNG TẠO
+                CREATIVE STUDIO
               </h1>
               <p className="text-[10px] text-slate-400 font-medium">Học vui vẻ - Sáng tạo tự do</p>
             </div>
@@ -395,7 +471,7 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
-            <span>Vẽ Tranh</span>
+            <span>Bảng Vẽ</span>
           </button>
           <button
             onClick={() => {
@@ -438,33 +514,318 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
       </header>
 
       {/* Main Working Viewports */}
-      <div className="flex-1 relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-purple-950/20">
+      <div className="flex-1 relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-purple-950/20 animate-fade-in">
         
-        {/* TAB 1: DRAWING CANVAS (TLDRAW WORKSPACE) */}
+        {/* TAB 1: DRAWING CANVAS (CREATIVE STUDIO ENGINE) */}
         {creativeTab === 'canvas' && (
-          <div className="absolute inset-0">
-            <div className="absolute top-4 left-6 z-[50] flex flex-col gap-1.5 pointer-events-auto">
-              <input
-                type="text"
-                value={drawingTitle}
-                onChange={(e) => setDrawingTitle(e.target.value)}
-                className="bg-slate-900/90 border border-slate-800 px-4 py-2 rounded-xl text-xs text-white font-bold max-w-[200px] focus:outline-none focus:border-purple-500/50 backdrop-blur-sm shadow-md"
-                placeholder="Tên bức tranh..."
-              />
-            </div>
+          <div className="absolute inset-0 flex flex-col md:flex-row overflow-hidden pointer-events-auto">
             
-            <div className="w-full h-full relative" style={{ touchAction: 'none' }}>
-              <Tldraw 
-                onMount={onMountEditor}
+            {/* 1. LEFT TOOLBAR: MS Paint Tools Decoupled */}
+            <div className="w-full md:w-16 bg-slate-900/80 border-b md:border-b-0 md:border-r border-slate-800/60 p-3 flex md:flex-col gap-2 items-center justify-center overflow-x-auto md:overflow-x-visible z-10 backdrop-blur-sm select-none">
+              
+              {/* Select Tool */}
+              <button
+                onClick={() => handleToolChange('select')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'select' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Chọn vật thể (Select)"
               >
-                <CanvasToolbar 
-                  onSave={handleSaveDrawing}
-                  onExhibit={handleExhibitDrawing}
-                  isSaving={isSaving}
-                  isExhibiting={isExhibiting}
-                />
-              </Tldraw>
+                <MousePointer className="w-5 h-5" />
+              </button>
+
+              {/* Pencil Tool */}
+              <button
+                onClick={() => handleToolChange('pencil')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'pencil' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Bút chì (Pencil)"
+              >
+                <Pencil className="w-5 h-5" />
+              </button>
+
+              {/* Marker Tool */}
+              <button
+                onClick={() => handleToolChange('marker')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'marker' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Bút Dạ dạ quang (Marker)"
+              >
+                <Highlighter className="w-5 h-5" />
+              </button>
+
+              {/* Brush Tool */}
+              <button
+                onClick={() => handleToolChange('brush')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'brush' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Cọ sơn lớn (Brush)"
+              >
+                <Paintbrush className="w-5 h-5" />
+              </button>
+
+              {/* Eraser Tool */}
+              <button
+                onClick={() => handleToolChange('eraser')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'eraser' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Tẩy trắng (Eraser)"
+              >
+                <Eraser className="w-5 h-5" />
+              </button>
+
+              <div className="w-4 md:w-full h-[1px] bg-slate-800 md:my-1" />
+
+              {/* Rectangle Shape */}
+              <button
+                onClick={() => handleToolChange('rectangle')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'rectangle' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Vẽ hình vuông (Rectangle)"
+              >
+                <Square className="w-5 h-5" />
+              </button>
+
+              {/* Ellipse Shape */}
+              <button
+                onClick={() => handleToolChange('ellipse')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'ellipse' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Vẽ hình tròn (Ellipse)"
+              >
+                <Circle className="w-5 h-5" />
+              </button>
+
+              {/* Star Shape */}
+              <button
+                onClick={() => handleToolChange('star')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'star' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Vẽ hình ngôi sao (Star)"
+              >
+                <Star className="w-5 h-5" />
+              </button>
+
+              {/* Line Shape */}
+              <button
+                onClick={() => handleToolChange('line')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'line' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Vẽ đường thẳng (Line)"
+              >
+                <Minus className="w-5 h-5" />
+              </button>
+
+              <div className="w-4 md:w-full h-[1px] bg-slate-800 md:my-1" />
+
+              {/* Text Tool */}
+              <button
+                onClick={() => handleToolChange('text')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'text' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Chèn chữ viết (Text)"
+              >
+                <Type className="w-5 h-5" />
+              </button>
+
+              {/* Fill Background Tool */}
+              <button
+                onClick={() => handleToolChange('fill')}
+                className={`p-2.5 rounded-xl transition-all hover:bg-slate-800 ${
+                  activeTool === 'fill' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Tô màu nền (Fill)"
+              >
+                <PaintBucket className="w-5 h-5" />
+              </button>
             </div>
+
+            {/* 2. CENTER WORKING CANVAS CONTAINER */}
+            <div className="flex-1 relative flex flex-col overflow-hidden">
+              
+              {/* Header Canvas Control Panel */}
+              <div className="h-14 bg-slate-900/30 border-b border-slate-800/40 px-6 flex items-center justify-between z-10 select-none">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={drawingTitle}
+                    onChange={(e) => setDrawingTitle(e.target.value)}
+                    className="bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-white font-bold max-w-[200px] focus:outline-none focus:border-purple-500/50"
+                    placeholder="Tên bức tranh..."
+                  />
+                  
+                  {/* Undo / Redo / Clear Controls */}
+                  <div className="flex items-center gap-1 bg-slate-950/40 border border-slate-800 px-1.5 py-1 rounded-xl">
+                    <button
+                      onClick={handleUndo}
+                      className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-all"
+                      title="Undo"
+                    >
+                      <Undo2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleRedo}
+                      className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-all"
+                      title="Redo"
+                    >
+                      <Redo2 className="w-4 h-4" />
+                    </button>
+                    <div className="w-[1px] h-3 bg-slate-800 mx-1" />
+                    <button
+                      onClick={handleClear}
+                      className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all"
+                      title="Clear"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Download CDF File */}
+                  <button
+                    onClick={handleDownloadCDF}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold rounded-xl transition-all shadow-md"
+                    title="Tải file CDF thiết kế vẽ tranh"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Lưu CDF</span>
+                  </button>
+
+                  <button
+                    onClick={handleSaveDrawing}
+                    disabled={isSaving}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 text-[11px] font-bold rounded-xl transition-all shadow-md"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleExhibitDrawing}
+                    disabled={isExhibiting}
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-orange-500/25 transition-all"
+                  >
+                    <Award className="w-3.5 h-3.5 animate-bounce-subtle" />
+                    <span>{isExhibiting ? 'Đang treo...' : '🚪 Treo triển lãm'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Fabric Sandbox Canvas Wrapper */}
+              <div className="flex-1 relative bg-white select-none">
+                <canvas 
+                  ref={canvasRef} 
+                  className="absolute inset-0 w-full h-full cursor-crosshair"
+                  id="creative-fabric-canvas"
+                />
+              </div>
+            </div>
+
+            {/* 3. RIGHT SIDE PANEL: Color Picker & Stickers packs */}
+            <div className="w-full md:w-64 bg-slate-900/80 border-t md:border-t-0 md:border-l border-slate-800/60 p-4 flex flex-col gap-5 z-10 overflow-y-auto scrollbar-thin backdrop-blur-sm select-none">
+              
+              {/* Color Circles selection */}
+              <div>
+                <h3 className="text-xs font-black text-slate-350 flex items-center gap-1.5 mb-2.5">
+                  <Palette className="w-4 h-4 text-purple-400" />
+                  <span>HỘP MÀU SẮC</span>
+                </h3>
+                <div className="grid grid-cols-6 gap-2">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => handleColorChange(c)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all relative ${
+                        brushColor === c ? 'border-white scale-110 shadow-md shadow-white/20' : 'border-transparent hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Slider for brush widths */}
+              <div>
+                <div className="flex justify-between items-center text-xs font-black text-slate-350 mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <Pencil className="w-3.5 h-3.5 text-purple-400" />
+                    <span>CỠ NÉT VẼ</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">{brushWidth}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="2"
+                  max="60"
+                  value={brushWidth}
+                  onChange={(e) => handleWidthChange(Number(e.target.value))}
+                  className="w-full h-1.5 bg-slate-850 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+              </div>
+
+              <div className="h-[1px] bg-slate-800/80" />
+
+              {/* Vector Sticker Packs */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <h3 className="text-xs font-black text-slate-350 flex items-center gap-1.5 mb-2.5">
+                  <Smile className="w-4 h-4 text-purple-400" />
+                  <span>NHÃN DÁN STICKER</span>
+                </h3>
+
+                {/* Pack Categories selector */}
+                <div className="grid grid-cols-3 gap-1 bg-slate-950/60 p-1 border border-slate-850 rounded-xl mb-3 shrink-0">
+                  <button
+                    onClick={() => setSelectedStickerPack('animals')}
+                    className={`py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      selectedStickerPack === 'animals' ? 'bg-slate-800 text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    🐾 Thú cưng
+                  </button>
+                  <button
+                    onClick={() => setSelectedStickerPack('space')}
+                    className={`py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      selectedStickerPack === 'space' ? 'bg-slate-800 text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    🚀 Vũ trụ
+                  </button>
+                  <button
+                    onClick={() => setSelectedStickerPack('school')}
+                    className={`py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      selectedStickerPack === 'school' ? 'bg-slate-800 text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    🎒 Bạn học
+                  </button>
+                </div>
+
+                {/* Sticker Grid Items */}
+                <div className="flex-1 overflow-y-auto grid grid-cols-4 gap-2.5 p-1.5 bg-slate-950/30 border border-slate-850/50 rounded-xl scrollbar-thin">
+                  {STICKER_PACKS[selectedStickerPack].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleAddEmojiSticker(emoji)}
+                      className="aspect-square bg-slate-900 border border-slate-850 hover:border-purple-500/30 text-2xl flex items-center justify-center rounded-xl transition-all hover:scale-105 active:scale-95"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
 
