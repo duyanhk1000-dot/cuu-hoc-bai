@@ -1491,57 +1491,76 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {grades.map((g) => (
-                        <div key={g.id} className="p-5 rounded-2xl glass-panel glow-indigo border border-slate-800 flex flex-col justify-between gap-4">
-                          <div>
-                            <div className="flex justify-between items-start gap-4">
-                              <div>
-                                <span className="text-xs font-bold text-indigo-400">{g.subject}</span>
-                                <h4 className="text-sm font-semibold text-slate-100 mt-1">Buổi {g.lesson_number}: {g.lesson_title}</h4>
-                              </div>
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
-                                g.score >= 8
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : g.score >= 5
-                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                              }`}>
-                                {g.score.toFixed(1)}đ
-                              </span>
-                            </div>
-                            
-                            <div className="mt-3 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-lg leading-relaxed line-clamp-3">
-                              <strong>Giáo viên nhận xét:</strong> {(() => {
-                                try {
-                                  return JSON.parse(g.ai_feedback).overall_feedback;
-                                } catch {
-                                  return g.ai_feedback;
-                                }
-                              })()}
-                            </div>
-                          </div>
+                    <div className="space-y-8">
+                      {Object.entries(
+                        grades.reduce((acc, g) => {
+                          const sub = g.subject || 'Khác'
+                          if (!acc[sub]) acc[sub] = []
+                          acc[sub].push(g)
+                          return acc
+                        }, {} as Record<string, Grade[]>)
+                      ).map(([subjectName, subjectGrades]) => (
+                        <div key={subjectName} className="space-y-3 text-left">
+                          <h4 className="text-sm font-bold text-indigo-400 border-b border-slate-800 pb-1 text-left uppercase tracking-wider flex items-center gap-2">
+                            <span>📚</span> Môn học: {subjectName} ({subjectGrades.length} bài)
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {subjectGrades.map((g) => (
+                              <div key={g.id} className="p-5 rounded-2xl glass-panel glow-indigo border border-slate-800 flex flex-col justify-between gap-4">
+                                <div>
+                                  <div className="flex justify-between items-start gap-4">
+                                    <div>
+                                      <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
+                                        Buổi {g.lesson_number}
+                                      </span>
+                                      <h4 className="text-sm font-semibold text-slate-100 mt-1.5">{g.lesson_title}</h4>
+                                    </div>
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
+                                      g.score >= 8
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                        : g.score >= 5
+                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                    }`}>
+                                      {g.score.toFixed(1)}đ
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="mt-3 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-lg leading-relaxed line-clamp-3">
+                                    <strong>Giáo viên nhận xét:</strong> {(() => {
+                                      try {
+                                        return JSON.parse(g.ai_feedback).overall_feedback;
+                                      } catch {
+                                        return g.ai_feedback;
+                                      }
+                                    })()}
+                                  </div>
+                                </div>
 
-                          <div className="flex justify-between items-center mt-2 border-t border-slate-800/80 pt-3">
-                            <span className="text-[10px] text-slate-500">
-                              Ngày thi: {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
-                            </span>
-                            <button
-                              onClick={() => {
-                                const matchedLesson = lessons.find(l => l.id === g.lesson_id)
-                                if (matchedLesson) {
-                                  setActiveLesson(matchedLesson)
-                                  setTestResult(JSON.parse(g.ai_feedback))
-                                  setAnswers(JSON.parse(g.answers))
-                                  setWorkspaceTab('result')
-                                } else {
-                                  alert('Bài học liên quan không được tải sẵn trong môn học này.')
-                                }
-                              }}
-                              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg active:scale-95 transition-all"
-                            >
-                              Xem nhận xét chi tiết
-                            </button>
+                                <div className="flex justify-between items-center mt-2 border-t border-slate-800/80 pt-3">
+                                  <span className="text-[10px] text-slate-500">
+                                    Ngày thi: {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      const matchedLesson = lessons.find(l => l.id === g.lesson_id)
+                                      if (matchedLesson) {
+                                        setActiveLesson(matchedLesson)
+                                        setTestResult(JSON.parse(g.ai_feedback))
+                                        setAnswers(JSON.parse(g.answers))
+                                        setWorkspaceTab('result')
+                                      } else {
+                                        alert('Bài học liên quan không được tải sẵn trong môn học này.')
+                                      }
+                                    }}
+                                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                                  >
+                                    Xem nhận xét chi tiết
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}

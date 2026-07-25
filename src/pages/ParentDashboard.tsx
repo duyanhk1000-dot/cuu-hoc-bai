@@ -1174,60 +1174,75 @@ export default function ParentDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
-                  <table className="w-full border-collapse bg-slate-900/30 text-left text-sm">
-                    <thead>
-                      <tr className="bg-slate-900/80 text-xs font-bold text-slate-400 border-b border-slate-800">
-                        <th className="py-4 px-6">Học sinh</th>
-                        <th className="py-4 px-6">Môn học</th>
-                        <th className="py-4 px-6">Buổi số</th>
-                        <th className="py-4 px-6">Tên bài học</th>
-                        <th className="py-4 px-6 text-center">Điểm số</th>
-                        <th className="py-4 px-6">Ngày nộp</th>
-                        <th className="py-4 px-6 text-right">Hành động</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {grades.map((g) => (
-                        <tr key={g.id} className="hover:bg-slate-900/20 text-slate-300">
-                          <td className="py-4 px-6 font-medium text-slate-100">{g.student_username}</td>
-                          <td className="py-4 px-6">{g.subject}</td>
-                          <td className="py-4 px-6 text-center">{g.lesson_number}</td>
-                          <td className="py-4 px-6 truncate max-w-[200px]">{g.lesson_title}</td>
-                          <td className="py-4 px-6 text-center">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              g.score >= 8
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : g.score >= 5
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {g.score.toFixed(1)} / 10
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-slate-400 text-xs">
-                            {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
-                          </td>
-                          <td className="py-4 px-6 text-right flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setSelectedGrade(g)}
-                              className="text-xs bg-indigo-600/15 hover:bg-indigo-600/30 text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all"
-                            >
-                              Xem nhận xét
-                            </button>
-                            <button
-                              onClick={() => handleDeleteGrade(g.id!)}
-                              className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-lg border border-rose-500/20 transition-all flex items-center gap-1"
-                              title="Xóa bài thi của học sinh"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Xóa
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-8">
+                  {Object.entries(
+                    grades.reduce((acc, g) => {
+                      const sub = g.subject || 'Khác'
+                      if (!acc[sub]) acc[sub] = []
+                      acc[sub].push(g)
+                      return acc
+                    }, {} as Record<string, Grade[]>)
+                  ).map(([subjectName, subjectGrades]) => (
+                    <div key={subjectName} className="space-y-3">
+                      <h4 className="text-sm font-bold text-indigo-400 border-b border-slate-800 pb-1 text-left uppercase tracking-wider flex items-center gap-2">
+                        <span>📚</span> Môn học: {subjectName} ({subjectGrades.length} bài thi)
+                      </h4>
+                      
+                      <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
+                        <table className="w-full border-collapse bg-slate-900/30 text-left text-sm">
+                          <thead>
+                            <tr className="bg-slate-900/80 text-xs font-bold text-slate-400 border-b border-slate-800">
+                              <th className="py-4 px-6">Học sinh</th>
+                              <th className="py-4 px-6">Buổi số</th>
+                              <th className="py-4 px-6">Tên bài học</th>
+                              <th className="py-4 px-6 text-center">Điểm số</th>
+                              <th className="py-4 px-6">Ngày nộp</th>
+                              <th className="py-4 px-6 text-right">Hành động</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {subjectGrades.map((g) => (
+                              <tr key={g.id} className="hover:bg-slate-900/20 text-slate-300">
+                                <td className="py-4 px-6 font-medium text-slate-100">{g.student_username}</td>
+                                <td className="py-4 px-6 text-center">{g.lesson_number}</td>
+                                <td className="py-4 px-6 truncate max-w-[250px]">{g.lesson_title}</td>
+                                <td className="py-4 px-6 text-center">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    g.score >= 8
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : g.score >= 5
+                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  }`}>
+                                    {g.score.toFixed(1)} / 10
+                                  </span>
+                                </td>
+                                <td className="py-4 px-6 text-slate-400 text-xs">
+                                  {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
+                                </td>
+                                <td className="py-4 px-6 text-right flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setSelectedGrade(g)}
+                                    className="text-xs bg-indigo-600/15 hover:bg-indigo-600/30 text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all"
+                                  >
+                                    Xem nhận xét
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteGrade(g.id!)}
+                                    className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-lg border border-rose-500/20 transition-all flex items-center gap-1"
+                                    title="Xóa bài thi của học sinh"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Xóa
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
