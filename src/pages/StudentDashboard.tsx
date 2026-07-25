@@ -1394,6 +1394,14 @@ export default function StudentDashboard() {
                         {Array.from({ length: syllabus.total_lessons }).map((_, idx) => {
                           const lessonNum = idx + 1
                           const existingLesson = lessons.find(l => l.lesson_number === lessonNum)
+                          
+                          // Find best score for this lesson
+                          const lessonGrades = existingLesson
+                            ? grades.filter(g => g.student_username === profile.username && g.lesson_id === existingLesson.id)
+                            : []
+                          const bestScore = lessonGrades.length > 0
+                            ? Math.max(...lessonGrades.map(g => g.score))
+                            : null
 
                           return (
                             <div
@@ -1408,8 +1416,13 @@ export default function StudentDashboard() {
                                 <div className="flex justify-between items-center mb-2">
                                   <span className="text-xs font-bold text-indigo-400">Buổi số {lessonNum}</span>
                                   {existingLesson ? (
-                                    <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 px-2 py-0.5 rounded-full">
-                                      Sẵn sàng
+                                    <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 px-2 py-0.5 rounded-full flex items-center gap-1.5 font-bold">
+                                      <span>Sẵn sàng</span>
+                                      {bestScore !== null && (
+                                        <span className="bg-indigo-500/20 text-indigo-200 px-1 py-0.2 rounded font-black border border-indigo-500/30">
+                                          {bestScore}/10 đ
+                                        </span>
+                                      )}
                                     </span>
                                   ) : (
                                     <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
