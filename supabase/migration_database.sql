@@ -171,8 +171,100 @@ CREATE TABLE IF NOT EXISTS public.petevents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS public.creative_drawings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_username VARCHAR(100) NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    thumbnail_url TEXT,
+    image_webp_url TEXT,
+    is_exhibited BOOLEAN DEFAULT FALSE,
+    visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public', 'private', 'archived')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_canvas_snapshots (
+    drawing_id UUID PRIMARY KEY REFERENCES public.creative_drawings(id) ON DELETE CASCADE,
+    canvas_json JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_ai_analysis (
+    drawing_id UUID PRIMARY KEY REFERENCES public.creative_drawings(id) ON DELETE CASCADE,
+    creativity_score NUMERIC(3,1),
+    dominant_emotion VARCHAR(50),
+    detected_objects TEXT[],
+    theme_category VARCHAR(50),
+    color_palette TEXT[],
+    story_seed TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_ai_persona_preferences (
+    persona_id VARCHAR(50) PRIMARY KEY,
+    persona_name VARCHAR(100) NOT NULL,
+    favorite_themes TEXT[],
+    favorite_colors TEXT[],
+    like_probability NUMERIC(3,2) DEFAULT 0.50,
+    comment_probability NUMERIC(3,2) DEFAULT 0.30,
+    online_schedule VARCHAR(50)
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_social_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES public.creative_drawings(id) ON DELETE CASCADE,
+    persona_id VARCHAR(50) NOT NULL REFERENCES public.creative_ai_persona_preferences(persona_id) ON DELETE CASCADE,
+    action_type VARCHAR(20) CHECK (action_type IN ('like', 'comment', 'bookmark')),
+    comment_content TEXT,
+    scheduled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'failed')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_daily_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_username VARCHAR(100) NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    reward_date DATE DEFAULT CURRENT_DATE,
+    earned_exp INTEGER DEFAULT 5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(student_username, reward_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_likes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES public.creative_drawings(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(drawing_id, username)
+);
+
+CREATE TABLE IF NOT EXISTS public.creative_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES public.creative_drawings(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL REFERENCES public.users(username) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE public.studentpets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petevents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_drawings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_canvas_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_ai_analysis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_ai_persona_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_social_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_daily_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creative_comments ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all on studentpets" ON public.studentpets FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on petevents" ON public.petevents FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_drawings" ON public.creative_drawings FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_canvas_snapshots" ON public.creative_canvas_snapshots FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_ai_analysis" ON public.creative_ai_analysis FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_ai_persona_preferences" ON public.creative_ai_persona_preferences FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_social_queue" ON public.creative_social_queue FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_daily_rewards" ON public.creative_daily_rewards FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_likes" ON public.creative_likes FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on creative_comments" ON public.creative_comments FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);

@@ -37,7 +37,7 @@ const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   }
 };
 
-export default function StudentDashboard() {
+export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: () => void }) {
   const { user, profile, loading, logout } = useAuth()
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
   const alert = (msg: string) => {
@@ -933,7 +933,6 @@ export default function StudentDashboard() {
               </button>
             </div>
           )}
-
         </aside>
 
         {/* Dashboard Work Panel */}
@@ -1344,24 +1343,36 @@ export default function StudentDashboard() {
             /* CASE B: NORMAL STUDENT DASHBOARD (LESSON LIST & GRADES HISTORY) */
             <div className="flex-1 flex flex-col gap-6">
               {/* Tab Navigation */}
-              <div className="flex border-b border-slate-800/80 pb-0.5 gap-6">
+              <div className="flex justify-between items-center border-b border-slate-800/80 pb-0.5">
+                <div className="flex gap-6">
+                  <button
+                    onClick={() => setActiveTab('lessons')}
+                    className={`pb-3 text-sm font-semibold transition-all relative ${
+                      activeTab === 'lessons' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {activeTab === 'lessons' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                    Danh sách buổi học
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('grades')}
+                    className={`pb-3 text-sm font-semibold transition-all relative ${
+                      activeTab === 'grades' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {activeTab === 'grades' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+                    Bảng điểm & Nhận xét
+                  </button>
+                </div>
+
+                {/* Nút Góc sáng tạo ở góc bên phải khoanh đỏ */}
                 <button
-                  onClick={() => setActiveTab('lessons')}
-                  className={`pb-3 text-sm font-semibold transition-all relative ${
-                    activeTab === 'lessons' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                  }`}
+                  onClick={onOpenCreative}
+                  className="pb-2.5 flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:text-purple-300 transition-all select-none group"
                 >
-                  {activeTab === 'lessons' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                  Danh sách buổi học
-                </button>
-                <button
-                  onClick={() => setActiveTab('grades')}
-                  className={`pb-3 text-sm font-semibold transition-all relative ${
-                    activeTab === 'grades' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  {activeTab === 'grades' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                  Bảng điểm & Nhận xét
+                  <span className="text-sm group-hover:animate-spin-slow">🎨</span>
+                  <span>Góc sáng tạo</span>
+                  <span className="text-[9px] bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full text-purple-400">vui chơi</span>
                 </button>
               </div>
 

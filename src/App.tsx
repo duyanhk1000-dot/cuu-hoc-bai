@@ -1,12 +1,15 @@
 import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import Login from './pages/Login'
 import ParentDashboard from './pages/ParentDashboard'
 import StudentDashboard from './pages/StudentDashboard'
+import CreativeApp from './pages/CreativeApp'
 import { isSupabaseConfigured } from './supabaseClient'
 import { AuthProvider, useAuth } from './components/AuthProvider'
 
 function AppContent() {
   const { user, profile, loading, logout } = useAuth()
+  const [currentRoute, setCurrentRoute] = useState<'dashboard' | 'creative'>('dashboard')
 
   // 1. Hiển thị màn hình chờ khi đang tải thông tin phiên làm việc
   if (loading) {
@@ -23,12 +26,22 @@ function AppContent() {
     return <Login />
   }
 
+  // Chuyển sang Góc sáng tạo độc lập cho học sinh
+  if (profile.role === 'student' && currentRoute === 'creative') {
+    return (
+      <CreativeApp 
+        username={profile.username} 
+        onClose={() => setCurrentRoute('dashboard')} 
+      />
+    )
+  }
+
   return (
     <main className="w-full">
       {profile.role === 'parent' ? (
         <ParentDashboard />
       ) : (
-        <StudentDashboard />
+        <StudentDashboard onOpenCreative={() => setCurrentRoute('creative')} />
       )}
     </main>
   )

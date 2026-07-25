@@ -107,3 +107,87 @@ CREATE TABLE IF NOT EXISTS PetEvents (
     reported BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 9. Bảng creative_drawings (Bản vẽ)
+CREATE TABLE IF NOT EXISTS creative_drawings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_username VARCHAR(100) NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    thumbnail_url TEXT,
+    image_webp_url TEXT,
+    is_exhibited BOOLEAN DEFAULT FALSE,
+    visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public', 'private', 'archived')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Bảng creative_canvas_snapshots (Snapshot nét vẽ tldraw)
+CREATE TABLE IF NOT EXISTS creative_canvas_snapshots (
+    drawing_id UUID PRIMARY KEY REFERENCES creative_drawings(id) ON DELETE CASCADE,
+    canvas_json JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. Bảng creative_ai_analysis (Kết quả phân tích tranh từ Gemini Vision)
+CREATE TABLE IF NOT EXISTS creative_ai_analysis (
+    drawing_id UUID PRIMARY KEY REFERENCES creative_drawings(id) ON DELETE CASCADE,
+    creativity_score NUMERIC(3,1),
+    dominant_emotion VARCHAR(50),
+    detected_objects TEXT[],
+    theme_category VARCHAR(50),
+    color_palette TEXT[],
+    story_seed TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Bảng creative_ai_persona_preferences (Sở thích của các Persona)
+CREATE TABLE IF NOT EXISTS creative_ai_persona_preferences (
+    persona_id VARCHAR(50) PRIMARY KEY,
+    persona_name VARCHAR(100) NOT NULL,
+    favorite_themes TEXT[],
+    favorite_colors TEXT[],
+    like_probability NUMERIC(3,2) DEFAULT 0.50,
+    comment_probability NUMERIC(3,2) DEFAULT 0.30,
+    online_schedule VARCHAR(50)
+);
+
+-- 13. Bảng creative_social_queue (Hàng đợi bình luận và lượt thích AI)
+CREATE TABLE IF NOT EXISTS creative_social_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES creative_drawings(id) ON DELETE CASCADE,
+    persona_id VARCHAR(50) NOT NULL REFERENCES creative_ai_persona_preferences(persona_id) ON DELETE CASCADE,
+    action_type VARCHAR(20) CHECK (action_type IN ('like', 'comment', 'bookmark')),
+    comment_content TEXT,
+    scheduled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'failed')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Bảng creative_daily_rewards (Nhận thưởng 5 EXP hàng ngày)
+CREATE TABLE IF NOT EXISTS creative_daily_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_username VARCHAR(100) NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    reward_date DATE DEFAULT CURRENT_DATE,
+    earned_exp INTEGER DEFAULT 5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(student_username, reward_date)
+);
+
+-- 15. Bảng creative_likes (Thích tranh người thật)
+CREATE TABLE IF NOT EXISTS creative_likes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES creative_drawings(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(drawing_id, username)
+);
+
+-- 16. Bảng creative_comments (Bình luận người thật)
+CREATE TABLE IF NOT EXISTS creative_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drawing_id UUID NOT NULL REFERENCES creative_drawings(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL REFERENCES Users(username) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

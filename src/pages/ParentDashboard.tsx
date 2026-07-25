@@ -44,7 +44,7 @@ export default function ParentDashboard() {
   }
 
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades' | 'pet'>('syllabus')
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'lessons' | 'grades' | 'pet' | 'creative'>('syllabus')
 
   // Virtual Pet & Custom Quest States
   const [studentPet, setStudentPet] = useState<StudentPet | null>(null)
@@ -53,6 +53,13 @@ export default function ParentDashboard() {
   const [newEventCoins, setNewEventCoins] = useState(50)
   const [newEventExp, setNewEventExp] = useState(100)
   const [updatingPet, setUpdatingPet] = useState(false)
+
+  // Creative corner parent moderation states
+  const [parentDrawings, setParentDrawings] = useState<any[]>([])
+  const loadParentDrawings = async () => {
+    const list = await dataService.getStudentDrawingsForParent('hocsinh')
+    setParentDrawings(list || [])
+  }
 
   const loadPetAndEvents = async () => {
     try {
@@ -68,6 +75,8 @@ export default function ParentDashboard() {
   useEffect(() => {
     if (activeTab === 'pet') {
       loadPetAndEvents()
+    } else if (activeTab === 'creative') {
+      loadParentDrawings()
     }
   }, [activeTab])
   
@@ -870,6 +879,15 @@ export default function ParentDashboard() {
               {activeTab === 'pet' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
               4. Quản lý Thú cưng & Sự kiện
             </button>
+            <button
+              onClick={() => setActiveTab('creative')}
+              className={`pb-3 text-sm font-semibold transition-all relative ${
+                activeTab === 'creative' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {activeTab === 'creative' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
+              5. Giám sát Góc sáng tạo
+            </button>
           </div>
 
           {/* TAB 1: SYLLABUS */}
@@ -1562,6 +1580,111 @@ export default function ParentDashboard() {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 5: CREATIVE CORNER MODERATION */}
+          {activeTab === 'creative' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 text-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div className="text-left">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    🎨 Giám Sát Góc Sáng Tạo
+                  </h3>
+                  <p className="text-xs text-slate-400">Xem tranh con vẽ, bình luận và quản lý trạng thái trưng bày của con.</p>
+                </div>
+              </div>
+
+              {parentDrawings.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 text-xs">
+                  Học sinh chưa tạo bức tranh nào trong Góc sáng tạo.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {parentDrawings.map((draw) => (
+                    <div 
+                      key={draw.id}
+                      className="bg-slate-950/40 border border-slate-800 rounded-2xl overflow-hidden shadow-md flex flex-col"
+                    >
+                      {/* Image frame */}
+                      <div className="aspect-video w-full bg-white flex items-center justify-center relative overflow-hidden">
+                        <img 
+                          src={draw.image_webp_url} 
+                          alt={draw.title} 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                      
+                      {/* Body */}
+                      <div className="p-4 flex-1 flex flex-col justify-between gap-4">
+                        <div className="text-left space-y-1">
+                          <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{draw.title}</h4>
+                          <span className="text-[10px] text-slate-500">
+                            Ngày vẽ: {new Date(draw.created_at || '').toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+
+                        {/* Status indicators */}
+                        <div className="flex flex-col gap-2.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400">Trạng thái:</span>
+                            <span className={`font-bold px-2 py-0.5 rounded-full ${
+                              draw.visibility === 'public'
+                                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                                : draw.visibility === 'archived'
+                                ? 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                                : 'bg-slate-800 border border-slate-700 text-slate-400'
+                            }`}>
+                              {draw.visibility === 'public' ? 'Đang triển lãm 🚪' : 
+                               draw.visibility === 'archived' ? 'Đang lưu trữ ẩn' : 'Tranh riêng tư'}
+                            </span>
+                          </div>
+
+                          {/* Control buttons */}
+                          <div className="flex gap-2">
+                            {draw.visibility === 'public' ? (
+                              <button
+                                onClick={async () => {
+                                  await dataService.updateDrawingVisibility(draw.id!, 'archived')
+                                  loadParentDrawings()
+                                  alert("Đã ẩn tranh khỏi Triển lãm công cộng. Tranh vẫn được lưu trữ riêng tư cho bé.")
+                                }}
+                                className="flex-1 py-1.5 bg-rose-950/20 border border-rose-500/30 hover:bg-rose-900/20 text-rose-400 text-[10px] font-bold rounded-xl transition-all"
+                              >
+                                🔒 Ẩn tranh triển lãm
+                              </button>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  await dataService.updateDrawingVisibility(draw.id!, 'public')
+                                  loadParentDrawings()
+                                  alert("Đã đưa tranh trở lại Triển lãm công cộng!")
+                                }}
+                                className="flex-1 py-1.5 bg-emerald-950/20 border border-emerald-500/30 hover:bg-emerald-900/20 text-emerald-400 text-[10px] font-bold rounded-xl transition-all"
+                              >
+                                🔓 Hiện triển lãm
+                              </button>
+                            )}
+
+                            {draw.visibility !== 'private' && (
+                              <button
+                                onClick={async () => {
+                                  await dataService.updateDrawingVisibility(draw.id!, 'private')
+                                  loadParentDrawings()
+                                  alert("Đã đặt tranh về chế độ Riêng tư.")
+                                }}
+                                className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-xl transition-all"
+                              >
+                                Lưu riêng tư
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
