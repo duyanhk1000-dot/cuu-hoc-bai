@@ -23,7 +23,9 @@ export default async function handler(req: any, res: any) {
   }
 
   const { drawingId, imageUrl, studentUsername, cdfContext } = req.body || {}
+  console.log(`[analyze-drawing] Bắt đầu xử lý cho drawingId: ${drawingId}, user: ${studentUsername}, cdfContext len: ${cdfContext?.length || 0}`)
   if (!drawingId || !imageUrl || !studentUsername) {
+    console.error(`[analyze-drawing] Thiếu tham số bắt buộc. drawingId: ${drawingId}, imageUrl: ${imageUrl}, studentUsername: ${studentUsername}`)
     return res.status(400).json({ error: 'Missing parameters' })
   }
 
@@ -35,20 +37,23 @@ export default async function handler(req: any, res: any) {
   try {
     // 2. Lấy API keys của Gemini
     const keys = await getDecryptedApiKeys(req.headers.authorization)
+    console.log(`[analyze-drawing] Đã lấy danh sách keys. Số lượng: ${keys.length}`)
     if (keys.length === 0) {
-      console.warn("Chưa cấu hình Gemini API Key. Bỏ qua phân tích AI.")
+      console.warn("[analyze-drawing] Chưa cấu hình Gemini API Key hoặc không giải mã được. Bỏ qua phân tích AI.")
       return res.status(200).json({ success: true, warning: 'Gemini Key not configured' })
     }
 
     const ai = new GoogleGenAI({ apiKey: keys[0] })
 
     // 3. Tải hình ảnh WebP từ Supabase Storage chuyển thành base64
+    console.log(`[analyze-drawing] Đang tải ảnh từ URL: ${imageUrl}`)
     const imageResponse = await fetch(imageUrl)
     if (!imageResponse.ok) {
       throw new Error(`Failed to fetch image from URL: ${imageUrl}`)
     }
     const imageBuffer = await imageResponse.arrayBuffer()
     const base64Image = Buffer.from(imageBuffer).toString('base64')
+    console.log(`[analyze-drawing] Đã tải xong ảnh, kích thước base64: ${base64Image.length} ký tự`)
 
     // 4. Gọi Gemini Vision phân tích 1 lần duy nhất
     let visionPrompt = `
@@ -66,6 +71,7 @@ export default async function handler(req: any, res: any) {
       visionPrompt += `\n\nThông tin chi tiết về cấu trúc vật thể và nhãn dán trong tranh (từ vector CDF JSON):\n${cdfContext}`;
     }
 
+    console.log("[analyze-drawing] Đang gọi Gemini 2.5 Flash phân tích tranh vẽ...")
     const visionResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
@@ -88,10 +94,12 @@ export default async function handler(req: any, res: any) {
     })
 
     const rawText = visionResponse.text || '{}'
+    console.log(`[analyze-drawing] Kết quả phản hồi từ Gemini: ${rawText}`)
     const analysis = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim())
 
     // 5. Lưu kết quả phân tích AI vào creative_ai_analysis
-    await supabase.from('creative_ai_analysis').insert({
+    console.log("[analyze-drawing] Đang lưu kết quả phân tích vào bảng creative_ai_analysis...")
+    const { error: insertAnalysisError } = await supabase.from('creative_ai_analysis').insert({
       drawing_id: drawingId,
       creativity_score: analysis.creativity_score || 8.0,
       dominant_emotion: analysis.dominant_emotion || 'vui tươi',
@@ -100,6 +108,11 @@ export default async function handler(req: any, res: any) {
       color_palette: analysis.color_palette || [],
       story_seed: analysis.story_seed || 'Một bức tranh đáng yêu của bé.'
     })
+    if (insertAnalysisError) {
+      console.error("[analyze-drawing] Lỗi lưu creative_ai_analysis:", insertAnalysisError)
+    } else {
+      console.log("[analyze-drawing] Đã lưu thành công creative_ai_analysis")
+    }
 
     // 6. Xử lý Social Engine lập lịch Likes & Comments cho các Persona dựa trên điểm sáng tạo
     const score = analysis.creativity_score || 8.0
@@ -116,6 +129,8 @@ export default async function handler(req: any, res: any) {
       numPersonas = Math.floor(Math.random() * 2) + 2 // 2 đến 3-personas (điểm thấp ít tương tác)
       probMultiplier = 0.5
     }
+    console.log(`[analyze-drawing] Điểm số: ${score}, Số lượng Persona tham gia: ${numPersonas}, Nhân tố xác suất: ${probMultiplier}`)
+
 
     const selectedPersonas = AI_PERSONAS.sort(() => 0.5 - Math.random()).slice(0, numPersonas)
     const now = new Date()

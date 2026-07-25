@@ -1086,19 +1086,6 @@ export const dataService = {
           .from('creative_likes')
           .insert({ drawing_id: drawingId, username })
         if (error) throw error
-
-        // Increment likes count in drawing metadata
-        const { data: drawing } = await supabase
-          .from('creative_drawings')
-          .select('likes_count')
-          .eq('id', drawingId)
-          .single()
-
-        await supabase
-          .from('creative_drawings')
-          .update({ likes_count: (drawing?.likes_count || 0) + 1 })
-          .eq('id', drawingId)
-
         return
       } catch (err) {
         console.error("Error in likeCreativeDrawing:", err)
