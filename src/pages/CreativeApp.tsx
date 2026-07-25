@@ -277,7 +277,10 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
       editor.store.loadSnapshot(tldrawSnapshot)
       setTldrawSnapshot(null) // Consume snapshot
     } else {
-      editor.store.clear()
+      const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+      if (shapeIds.length > 0) {
+        editor.deleteShapes(shapeIds)
+      }
     }
   }
 
@@ -439,13 +442,13 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
         
         {/* TAB 1: DRAWING CANVAS (TLDRAW WORKSPACE) */}
         {creativeTab === 'canvas' && (
-          <div className="w-full h-full relative">
-            <div className="absolute top-4 left-6 z-[10] flex flex-col gap-1.5 pointer-events-auto">
+          <div className="absolute inset-0">
+            <div className="absolute top-4 left-6 z-[50] flex flex-col gap-1.5 pointer-events-auto">
               <input
                 type="text"
                 value={drawingTitle}
                 onChange={(e) => setDrawingTitle(e.target.value)}
-                className="bg-slate-900/90 border border-slate-800 px-4 py-2 rounded-xl text-xs text-white font-bold max-w-[200px] focus:outline-none focus:border-purple-500/50 backdrop-blur-sm"
+                className="bg-slate-900/90 border border-slate-800 px-4 py-2 rounded-xl text-xs text-white font-bold max-w-[200px] focus:outline-none focus:border-purple-500/50 backdrop-blur-sm shadow-md"
                 placeholder="Tên bức tranh..."
               />
             </div>
@@ -467,7 +470,7 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
 
         {/* TAB 2: TRIỂN LÃM GALLERY WALLS (PINTEREST STYLE) */}
         {creativeTab === 'gallery' && (
-          <div className="w-full h-full overflow-y-auto px-10 py-8 scrollbar-thin">
+          <div className="absolute inset-0 overflow-y-auto px-10 py-8 scrollbar-thin">
             <div className="max-w-7xl mx-auto space-y-6">
               <div className="flex justify-between items-end border-b border-slate-800/80 pb-4">
                 <div>
@@ -554,7 +557,7 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
 
         {/* TAB 3: TRẦN VẼ CỦA HỌC SINH (MY GALLERY) */}
         {creativeTab === 'my_drawings' && (
-          <div className="w-full h-full overflow-y-auto px-10 py-8 scrollbar-thin">
+          <div className="absolute inset-0 overflow-y-auto px-10 py-8 scrollbar-thin">
             <div className="max-w-7xl mx-auto space-y-6">
               <div className="flex justify-between items-end border-b border-slate-800/80 pb-4">
                 <div>
