@@ -333,7 +333,7 @@ export default function StudentDashboard() {
   const handleCompletePetEvent = async (event: PetEvent) => {
     if (!studentPet || !event.id) return
     
-    await dataService.completePetEvent(event.id)
+    await dataService.deletePetEvent(event.id)
     
     const coinsEarned = event.reward_coins
     const expEarned = event.reward_exp
@@ -838,10 +838,10 @@ export default function StudentDashboard() {
               </div>
 
               {/* Gift chest notification badge */}
-              {petEvents.filter(ev => !ev.is_completed).length > 0 && (
+              {petEvents.length > 0 && (
                 <div 
                   className="animate-bounce bg-rose-500 text-white rounded-full p-1 border border-white text-[10px] absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 shadow-lg z-30"
-                  title={`Có ${petEvents.filter(ev => !ev.is_completed).length} thử thách mới từ bố mẹ!`}
+                  title={`Có ${petEvents.length} thử thách từ bố mẹ!`}
                 >
                   🎁
                 </div>
@@ -1715,14 +1715,14 @@ export default function StudentDashboard() {
               {petShopTab === 'interact' && (
                 <div className="space-y-4">
                   {/* Parent Events Section */}
-                  {petEvents.filter(ev => !ev.is_completed).length > 0 && (
+                  {petEvents.length > 0 && (
                     <div className="p-4 bg-rose-950/20 border border-rose-500/25 rounded-2xl space-y-3 text-left">
                       <div className="flex items-center gap-1.5 text-rose-400 font-bold text-xs uppercase tracking-wider">
                         <span>🎁</span> Nhiệm vụ thử thách từ bố mẹ:
                       </div>
                       
                       <div className="space-y-2">
-                        {petEvents.filter(ev => !ev.is_completed).map((ev) => (
+                        {petEvents.map((ev) => (
                           <div 
                             key={ev.id}
                             className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl flex items-center justify-between gap-3 text-left animate-in slide-in-from-top duration-300"
@@ -1736,15 +1736,34 @@ export default function StudentDashboard() {
                                 <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-bold">
                                   ⭐ {ev.reward_exp} EXP
                                 </span>
+                                {ev.is_completed ? (
+                                  <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold border border-emerald-500/20 animate-pulse">
+                                    ✓ Hoàn thành
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    Đang làm...
+                                  </span>
+                                )}
                               </div>
                             </div>
                             
-                            <button
-                              onClick={() => handleCompletePetEvent(ev)}
-                              className="px-3 py-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-bold rounded-lg shadow-md active:scale-95 transition-all"
-                            >
-                              Nhận thưởng
-                            </button>
+                            {ev.is_completed ? (
+                              <button
+                                onClick={() => handleCompletePetEvent(ev)}
+                                className="px-3 py-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-bold rounded-lg shadow-md active:scale-95 transition-all animate-pulse"
+                              >
+                                Nhận thưởng
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className="px-3 py-1.5 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg cursor-not-allowed opacity-50"
+                                title="Đang chờ bố mẹ duyệt hoàn thành!"
+                              >
+                                Nhận thưởng
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

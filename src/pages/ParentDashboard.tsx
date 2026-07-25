@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool, Check } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
@@ -1483,14 +1483,40 @@ export default function ParentDashboard() {
                             </div>
                           </div>
                           
-                          <button
-                            disabled={updatingPet}
-                            onClick={() => handleDeleteEvent(ev.id!)}
-                            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
-                            title="Xóa sự kiện này"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {!ev.is_completed && (
+                              <button
+                                disabled={updatingPet}
+                                onClick={async () => {
+                                  setUpdatingPet(true)
+                                  try {
+                                    await dataService.completePetEvent(ev.id!)
+                                    const evs = await dataService.getPetEvents('hocsinh')
+                                    setPetEvents(evs)
+                                    alert("Đã duyệt hoàn thành sự kiện thử thách!")
+                                  } catch (err) {
+                                    console.error(err)
+                                  } finally {
+                                    setUpdatingPet(false)
+                                  }
+                                }}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg border border-transparent text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                                title="Duyệt hoàn thành"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Duyệt
+                              </button>
+                            )}
+                            
+                            <button
+                              disabled={updatingPet}
+                              onClick={() => handleDeleteEvent(ev.id!)}
+                              className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
+                              title="Xóa sự kiện này"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
