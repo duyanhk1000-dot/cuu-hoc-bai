@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { decrypt } from './crypto.js'
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://udksngnafcfubpuwcjhp.supabase.co'
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVka3NuZ25hZmNmdWJwdXdjamhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MDIxODYsImV4cCI6MjA5ODk3ODE4Nn0.scYOnhkwaM_COBaq_qx8vWFOgBhA95ERmdFvCaAyiME'
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://ubaupchqavybpjpxjmle.supabase.co'
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zbNs1LxLDkgdHLJ4RE6JYA_K9uJ3aFP'
 
 // Lưu trạng thái các khóa bị lỗi tạm thời ở mức module
 const disabledKeys = new Map<string, number>()
