@@ -216,6 +216,14 @@ export default function StudentDashboard() {
     loadPetData()
   }, [])
 
+  // Poll pet data & events every 10 seconds to keep synced with parent updates
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadPetData()
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Load syllabus and lessons when subject changes
   useEffect(() => {
     if (selectedSubject) {
@@ -320,6 +328,56 @@ export default function StudentDashboard() {
     setTimeout(() => {
       setIsPetShaking(false)
     }, 250)
+  }
+
+  const handleCompletePetEvent = async (event: PetEvent) => {
+    if (!studentPet || !event.id) return
+    
+    await dataService.completePetEvent(event.id)
+    
+    const coinsEarned = event.reward_coins
+    const expEarned = event.reward_exp
+    
+    let nextExp = studentPet.current_exp + expEarned
+    let nextLevel = studentPet.current_level
+    let didLevelUp = false
+
+    while (true) {
+      const expNeeded = (nextLevel * 200) + 100
+      if (nextExp >= expNeeded && nextLevel < 10) {
+        nextExp -= expNeeded
+        nextLevel += 1
+        didLevelUp = true
+      } else {
+        break
+      }
+    }
+
+    const nextCoins = studentPet.coins + coinsEarned
+    const nextHp = Math.min(100, studentPet.current_hp + 10)
+
+    const updatedPet = await dataService.updateStudentPet('hocsinh', {
+      coins: nextCoins,
+      current_exp: nextExp,
+      current_level: nextLevel,
+      current_hp: nextHp
+    })
+    setStudentPet(updatedPet)
+
+    const evs = await dataService.getPetEvents('hocsinh')
+    setPetEvents(evs)
+
+    setVictoryTitle(`HOÀN THÀNH SỰ KIỆN: ${event.title}`)
+    setVictoryCoinsEarned(coinsEarned)
+    setVictoryExpEarned(expEarned)
+    setIsLevelUp(didLevelUp)
+    setShowVictoryPopup(true)
+
+    if (didLevelUp) {
+      playSound('level_up')
+    } else {
+      playSound('coin')
+    }
   }
 
   const handleBuyEvolutionItem = async (itemName: string, price: number) => {
@@ -734,7 +792,7 @@ export default function StudentDashboard() {
                 playSound('squeak');
                 setIsPetModalOpen(true);
               }}
-              className="flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-95 select-none h-10 group"
+              className="flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-95 select-none h-10 group relative"
               title="Nhấp để xem & chăm sóc thú cưng!"
             >
               {/* Bars */}
@@ -778,6 +836,16 @@ export default function StudentDashboard() {
                 <span>🪙</span>
                 <span>{studentPet.coins}</span>
               </div>
+
+              {/* Gift chest notification badge */}
+              {petEvents.filter(ev => !ev.is_completed).length > 0 && (
+                <div 
+                  className="animate-bounce bg-rose-500 text-white rounded-full p-1 border border-white text-[10px] absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 shadow-lg z-30"
+                  title={`Có ${petEvents.filter(ev => !ev.is_completed).length} thử thách mới từ bố mẹ!`}
+                >
+                  🎁
+                </div>
+              )}
             </div>
           )}
           {/* Nút thay đổi theme */}
@@ -1646,6 +1714,43 @@ export default function StudentDashboard() {
               {/* Sub-tab 1: Interaction & Evolution */}
               {petShopTab === 'interact' && (
                 <div className="space-y-4">
+                  {/* Parent Events Section */}
+                  {petEvents.filter(ev => !ev.is_completed).length > 0 && (
+                    <div className="p-4 bg-rose-950/20 border border-rose-500/25 rounded-2xl space-y-3 text-left">
+                      <div className="flex items-center gap-1.5 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                        <span>🎁</span> Nhiệm vụ thử thách từ bố mẹ:
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {petEvents.filter(ev => !ev.is_completed).map((ev) => (
+                          <div 
+                            key={ev.id}
+                            className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl flex items-center justify-between gap-3 text-left animate-in slide-in-from-top duration-300"
+                          >
+                            <div className="space-y-1">
+                              <h5 className="text-xs font-bold text-slate-200">{ev.title}</h5>
+                              <div className="flex gap-2">
+                                <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
+                                  🪙 {ev.reward_coins} xu
+                                </span>
+                                <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-bold">
+                                  ⭐ {ev.reward_exp} EXP
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => handleCompletePetEvent(ev)}
+                              className="px-3 py-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-bold rounded-lg shadow-md active:scale-95 transition-all"
+                            >
+                              Nhận thưởng
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Feed section */}
                   <div className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-left">Cho thú ăn phục hồi sức khỏe:</h4>
