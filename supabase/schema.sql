@@ -104,5 +104,6 @@ CREATE TABLE IF NOT EXISTS PetEvents (
     reward_coins INTEGER DEFAULT 0,
     reward_exp INTEGER DEFAULT 0,
     is_completed BOOLEAN DEFAULT FALSE,
+    reported BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

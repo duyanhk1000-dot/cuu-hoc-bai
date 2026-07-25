@@ -380,6 +380,14 @@ export default function StudentDashboard() {
     }
   }
 
+  const handleReportPetEvent = async (event: PetEvent) => {
+    if (!event.id) return
+    await dataService.reportPetEvent(event.id)
+    const evs = await dataService.getPetEvents('hocsinh')
+    setPetEvents(evs)
+    alert(`Đã gửi báo cáo hoàn thành nhiệm vụ "${event.title}"! Đợi bố mẹ duyệt nhé.`)
+  }
+
   const handleBuyEvolutionItem = async (itemName: string, price: number) => {
     if (!studentPet) return
     if (ownedEvolutionItems.includes(itemName)) {
@@ -1753,6 +1761,10 @@ export default function StudentDashboard() {
                                   <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold border border-emerald-500/20 animate-pulse">
                                     ✓ Hoàn thành
                                   </span>
+                                ) : ev.reported ? (
+                                  <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+                                    Đang chờ duyệt...
+                                  </span>
                                 ) : (
                                   <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
                                     Đang làm...
@@ -1768,13 +1780,20 @@ export default function StudentDashboard() {
                               >
                                 Nhận thưởng
                               </button>
-                            ) : (
+                            ) : ev.reported ? (
                               <button
                                 disabled
                                 className="px-3 py-1.5 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg cursor-not-allowed opacity-50"
                                 title="Đang chờ bố mẹ duyệt hoàn thành!"
                               >
-                                Nhận thưởng
+                                Đợi duyệt
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleReportPetEvent(ev)}
+                                className="px-3 py-1.5 bg-gradient-to-tr from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white text-[10px] font-bold rounded-lg shadow-md active:scale-95 transition-all"
+                              >
+                                Báo hoàn thành
                               </button>
                             )}
                           </div>

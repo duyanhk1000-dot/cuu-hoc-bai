@@ -74,6 +74,7 @@ export interface PetEvent {
   reward_coins: number;
   reward_exp: number;
   is_completed: boolean;
+  reported?: boolean;
   created_at?: string;
 }
 
@@ -613,6 +614,7 @@ export const dataService = {
       reward_coins: event.reward_coins || 0,
       reward_exp: event.reward_exp || 0,
       is_completed: false,
+      reported: false,
       created_at: new Date().toISOString()
     };
     events.unshift(newEvent);
@@ -625,7 +627,7 @@ export const dataService = {
       try {
         await supabase
           .from('petevents')
-          .update({ is_completed: true })
+          .update({ is_completed: true, reported: true }) // approved means also reported
           .eq('id', eventId);
         return;
       } catch (err) {
@@ -638,6 +640,29 @@ export const dataService = {
     const idx = events.findIndex((e: any) => e.id === eventId);
     if (idx !== -1) {
       events[idx].is_completed = true;
+      events[idx].reported = true;
+      setLocal('local_pet_events', events);
+    }
+  },
+
+  async reportPetEvent(eventId: number): Promise<void> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('petevents')
+          .update({ reported: true })
+          .eq('id', eventId);
+        return;
+      } catch (err) {
+        console.error("Error in reportPetEvent:", err);
+      }
+    }
+
+    // LocalStorage Fallback
+    const events = getLocal('local_pet_events', []);
+    const idx = events.findIndex((e: any) => e.id === eventId);
+    if (idx !== -1) {
+      events[idx].reported = true;
       setLocal('local_pet_events', events);
     }
   },

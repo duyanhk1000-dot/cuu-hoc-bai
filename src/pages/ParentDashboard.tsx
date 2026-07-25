@@ -1461,8 +1461,16 @@ export default function ParentDashboard() {
                           className="p-4 rounded-xl bg-slate-950/30 border border-slate-800/80 flex items-center justify-between gap-4"
                         >
                           <div className="space-y-1">
-                            <h4 className="text-sm font-semibold text-slate-200">
-                              {ev.title}
+                            <h4 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                              <span>{ev.title}</span>
+                              {!ev.is_completed && ev.reported && (
+                                <span 
+                                  className="w-5 h-5 rounded-full bg-rose-500 text-slate-100 font-extrabold text-xs flex items-center justify-center animate-bounce shadow-md shadow-rose-500/25"
+                                  title="Con đã báo hoàn thành! Hãy kiểm tra và click Duyệt."
+                                >
+                                  !
+                                </span>
+                              )}
                             </h4>
                             <div className="flex gap-2">
                               <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
@@ -1474,6 +1482,10 @@ export default function ParentDashboard() {
                               {ev.is_completed ? (
                                 <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">
                                   ✓ Hoàn thành
+                                </span>
+                              ) : ev.reported ? (
+                                <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full font-extrabold animate-pulse">
+                                  ⚠️ Chờ duyệt (!)
                                 </span>
                               ) : (
                                 <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold animate-pulse">
