@@ -293,27 +293,39 @@ export default function ParentDashboard() {
     e.preventDefault()
     if (!newEventTitle.trim()) return
     setUpdatingPet(true)
-    await dataService.createPetEvent({
-      student_username: 'hocsinh',
-      title: newEventTitle.trim(),
-      reward_coins: newEventCoins,
-      reward_exp: newEventExp,
-      is_completed: false
-    })
-    setNewEventTitle('')
-    const evs = await dataService.getPetEvents('hocsinh')
-    setPetEvents(evs)
-    setUpdatingPet(false)
-    alert("Đã tạo sự kiện và đặt phần thưởng thành công!")
+    try {
+      await dataService.createPetEvent({
+        student_username: 'hocsinh',
+        title: newEventTitle.trim(),
+        reward_coins: newEventCoins,
+        reward_exp: newEventExp,
+        is_completed: false
+      })
+      setNewEventTitle('')
+      const evs = await dataService.getPetEvents('hocsinh')
+      setPetEvents(evs)
+      alert("Đã tạo sự kiện và đặt phần thưởng thành công!")
+    } catch (err) {
+      console.error("Error creating event:", err)
+      alert("Không thể tạo thử thách. Vui lòng thử lại!")
+    } finally {
+      setUpdatingPet(false)
+    }
   }
 
   const handleDeleteEvent = async (id: number) => {
     if (!confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) return
     setUpdatingPet(true)
-    await dataService.deletePetEvent(id)
-    const evs = await dataService.getPetEvents('hocsinh')
-    setPetEvents(evs)
-    setUpdatingPet(false)
+    try {
+      await dataService.deletePetEvent(id)
+      const evs = await dataService.getPetEvents('hocsinh')
+      setPetEvents(evs)
+    } catch (err) {
+      console.error("Error deleting event:", err)
+      alert("Không thể xóa thử thách này. Vui lòng thử lại!")
+    } finally {
+      setUpdatingPet(false)
+    }
   }
 
   // Load initial data
