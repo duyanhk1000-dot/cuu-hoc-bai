@@ -101,12 +101,27 @@ export default async function handler(req: any, res: any) {
       story_seed: analysis.story_seed || 'Một bức tranh đáng yêu của bé.'
     })
 
-    // 6. Xử lý Social Engine lập lịch Likes & Comments cho các Persona
-    const selectedPersonas = AI_PERSONAS.sort(() => 0.5 - Math.random()).slice(0, 5) // Lấy ngẫu nhiên 5 persona
+    // 6. Xử lý Social Engine lập lịch Likes & Comments cho các Persona dựa trên điểm sáng tạo
+    const score = analysis.creativity_score || 8.0
+    let numPersonas = 4
+    let probMultiplier = 1.0
+
+    if (score >= 8.5) {
+      numPersonas = Math.floor(Math.random() * 3) + 6 // 6 đến 8 personas (điểm cao nhiều tương tác)
+      probMultiplier = 1.4
+    } else if (score >= 6.5) {
+      numPersonas = Math.floor(Math.random() * 2) + 4 // 4 đến 5-personas (trung bình)
+      probMultiplier = 1.0
+    } else {
+      numPersonas = Math.floor(Math.random() * 2) + 2 // 2 đến 3-personas (điểm thấp ít tương tác)
+      probMultiplier = 0.5
+    }
+
+    const selectedPersonas = AI_PERSONAS.sort(() => 0.5 - Math.random()).slice(0, numPersonas)
     const now = new Date()
 
-    // Danh sách trì hoãn thời gian cho từng Persona (theo giây)
-    const delays = [2, 15, 120, 900, 3600]
+    // Danh sách trì hoãn thời gian cho từng Persona (theo giây) mở rộng
+    const delays = [2, 15, 60, 300, 1200, 3600, 7200, 14400]
 
     for (let i = 0; i < selectedPersonas.length; i++) {
       const persona = selectedPersonas[i]
@@ -120,10 +135,10 @@ export default async function handler(req: any, res: any) {
       
       if (isThemeMatch) matchScore += 0.3
       if (isColorMatch) matchScore += 0.2
-      if ((analysis.creativity_score || 8) >= 9) matchScore += 0.1
+      if (score >= 9) matchScore += 0.1
 
-      const shouldLike = Math.random() < (persona.like_prob * (matchScore / 0.5))
-      const shouldComment = Math.random() < (persona.comment_prob * (matchScore / 0.5))
+      const shouldLike = Math.random() < (persona.like_prob * (matchScore / 0.5) * probMultiplier)
+      const shouldComment = Math.random() < (persona.comment_prob * (matchScore / 0.5) * probMultiplier)
 
       // B. Nếu thỏa mãn xác suất, tạo lệnh like & comment
       if (shouldLike) {
@@ -148,9 +163,11 @@ export default async function handler(req: any, res: any) {
           - Gợi mở câu chuyện: ${analysis.story_seed}
 
           Hãy viết một bình luận ngắn (dưới 35 từ) bằng tiếng Việt gửi trực tiếp tới bé để khen ngợi bức tranh này.
-          Quy tắc viết:
-          - Dùng ngôn ngữ nói chuyện của nhân vật bé Na, thầy giáo, hoặc chú robot thích hợp.
-          - KHÔNG nhắc đến các từ kỹ thuật như "AI", "mô hình", "thuật toán", "Gemini". Hãy đóng vai như một người bạn/thầy giáo thật.
+          Quy tắc viết quan trọng để tạo cảm giác tự nhiên như người thật:
+          - Cực kỳ khuyến khích sử dụng tiếng lóng học đường, ngôn từ trẻ con tự nhiên (ví dụ: "đỉnh chóp", "đẹp xỉu", "yêu thế", "xịn đét", "wow", "luôn á", "nè", "hén", "uây", "tớ", "cậu", "bạn ơi").
+          - Đóng vai đúng với nhân vật (ví dụ: bé Na thì ngây ngô hay dùng từ đáng yêu, thầy giáo Lâm thì dùng từ ấm áp cổ vũ, robot thì có thể chèn các từ máy móc dễ thương).
+          - KHÔNG sử dụng các từ ngữ sáo rỗng kiểu dịch máy (như "tác phẩm nghệ thuật của bạn", "tôi yêu bức tranh").
+          - KHÔNG nhắc đến các từ kỹ thuật như "AI", "mô hình", "thuật toán", "Gemini".
           - Luôn truyền năng lượng ấm áp, tích cực.
         `
 

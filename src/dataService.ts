@@ -983,9 +983,14 @@ export const dataService = {
 
     // 3. Gọi xử lý AI ngầm qua background job / Edge Function
     if (isSupabaseConfigured) {
+      const sessionMock = localStorage.getItem('family_learning_mock_user')
+      const token = sessionMock ? 'mock-parent-id' : (await supabase.auth.getSession()).data.session?.access_token || ''
       fetch('/api/analyze-drawing', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ drawingId, imageUrl, studentUsername: username, cdfContext })
       }).catch(err => console.error("Error trigger AI analysis:", err))
     } else {
