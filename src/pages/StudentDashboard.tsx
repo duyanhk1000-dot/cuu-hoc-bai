@@ -559,7 +559,7 @@ export default function StudentDashboard() {
         let isFirstTime = true
         let oldScore = -1
 
-        const prevGrades = grades.filter(g => g.student_username === profile.username)
+        const prevGrades = grades.filter(g => g.student_username === profile.username && g.lesson_id === activeLesson.id)
         if (prevGrades.length > 0) {
           isFirstTime = false
           oldScore = Math.max(...prevGrades.map(g => g.score))
