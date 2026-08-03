@@ -44,6 +44,10 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
     setAlertMessage(msg)
   }
 
+  // Text selection TTS states
+  const [selectedText, setSelectedText] = useState('')
+  const [selectionCoords, setSelectionCoords] = useState<{ x: number; y: number } | null>(null)
+
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -133,6 +137,112 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
     }
     return () => clearInterval(interval)
   }, [submittingTest])
+
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) {
+      setAlertMessage('Trình duyệt của bạn không hỗ trợ tính năng phát âm Web Speech API.')
+      return
+    }
+
+    // Hủy phát âm đang chạy dở
+    window.speechSynthesis.cancel()
+
+    const utterance = new SpeechSynthesisUtterance(text)
+
+    // Xác định mã ngôn ngữ dựa vào môn học hiện tại
+    let langCode = 'en-US'
+    const subjectLower = selectedSubject?.toLowerCase() || ''
+    if (subjectLower.includes('anh') || subjectLower.includes('english')) {
+      langCode = 'en-US'
+    } else if (subjectLower.includes('trung') || subjectLower.includes('chinese')) {
+      langCode = 'zh-CN'
+    } else if (subjectLower.includes('nhật') || subjectLower.includes('japanese')) {
+      langCode = 'ja-JP'
+    } else if (subjectLower.includes('hàn') || subjectLower.includes('korean')) {
+      langCode = 'ko-KR'
+    } else if (subjectLower.includes('việt') || subjectLower.includes('vietnamese')) {
+      langCode = 'vi-VN'
+    }
+
+    utterance.lang = langCode
+    utterance.rate = 0.6 // Cấu hình phát âm chậm rõ ràng
+
+    const voices = window.speechSynthesis.getVoices()
+    let bestVoice = voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('google')) ||
+                    voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('natural')) ||
+                    voices.find(v => v.lang === langCode)
+    
+    if (bestVoice) {
+      utterance.voice = bestVoice
+    }
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection()
+      if (!selection) return
+
+      const text = selection.toString().trim()
+      if (!text || text.length > 200) {
+        setSelectionCoords(null)
+        setSelectedText('')
+        return
+      }
+
+      // Chỉ hiển thị loa khi bôi đen trong nội dung bài giảng (.prose) hoặc các vùng hỗ trợ phát âm (.selectable-tts)
+      const anchorNode = selection.anchorNode
+      if (!anchorNode) return
+
+      let parentEl = anchorNode.parentElement
+      let isInsideSelectable = false
+      while (parentEl) {
+        if (parentEl.classList.contains('prose') || parentEl.classList.contains('selectable-tts')) {
+          isInsideSelectable = true
+          break
+        }
+        parentEl = parentEl.parentElement
+      }
+
+      if (!isInsideSelectable) {
+        setSelectionCoords(null)
+        setSelectedText('')
+        return
+      }
+
+      try {
+        const range = selection.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        setSelectionCoords({
+          x: rect.left + rect.width / 2,
+          y: rect.top - 12
+        })
+        setSelectedText(text)
+      } catch (err) {
+        setSelectionCoords(null)
+        setSelectedText('')
+      }
+    }
+
+    document.addEventListener('mouseup', handleSelection)
+    document.addEventListener('touchend', handleSelection)
+    
+    const handleDocumentClick = (e: MouseEvent) => {
+      const selection = window.getSelection()
+      if (selection && selection.toString().trim() === '') {
+        setSelectionCoords(null)
+        setSelectedText('')
+      }
+    }
+    document.addEventListener('mousedown', handleDocumentClick)
+
+    return () => {
+      document.removeEventListener('mouseup', handleSelection)
+      document.removeEventListener('touchend', handleSelection)
+      document.removeEventListener('mousedown', handleDocumentClick)
+    }
+  }, [selectedSubject])
 
   const getSubmittingProgressText = () => {
     switch (submittingProgress) {
@@ -1134,7 +1244,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                       >
                         <div className={`w-full h-full transform-style-3d transition-transform duration-500 relative ${isFlipped ? 'rotate-y-180' : ''}`}>
                           {/* Front Side */}
-                          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl">
+                          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl selectable-tts">
                             <Sparkles className="w-6 h-6 text-indigo-400 mb-4 animate-pulse" />
                             <h3 className="text-lg font-bold text-slate-100 leading-relaxed">
                               <MathRenderer content={flashcards[currentFlashcardIdx]?.front || ''} />
@@ -1143,7 +1253,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                           </div>
 
                           {/* Back Side */}
-                          <div className="absolute inset-0 w-full h-full rounded-2xl bg-indigo-950/80 border border-indigo-500/35 glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl rotate-y-180">
+                          <div className="absolute inset-0 w-full h-full rounded-2xl bg-indigo-950/80 border border-indigo-500/35 glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl rotate-y-180 selectable-tts">
                             <CheckCircle className="w-6 h-6 text-emerald-400 mb-4" />
                             <p className="text-sm text-slate-200 leading-relaxed font-medium">
                               <MathRenderer content={flashcards[currentFlashcardIdx]?.back || ''} />
@@ -2126,6 +2236,26 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
         message={alertMessage}
         onClose={() => setAlertMessage(null)}
       />
+
+      {selectionCoords && selectedText && (
+        <div
+          className="fixed z-[9999] bg-gradient-to-r from-orange-500 to-pink-500 border border-orange-400 px-3.5 py-2 rounded-2xl shadow-2xl flex items-center gap-2 text-white text-xs font-black animate-bounce-subtle cursor-pointer select-none"
+          style={{
+            left: `${selectionCoords.x}px`,
+            top: `${selectionCoords.y}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+          onMouseDown={(e) => {
+            // Ngăn chặn sự kiện mousedown xóa vùng bôi đen trước khi kích hoạt âm thanh
+            e.preventDefault()
+            e.stopPropagation()
+            speakText(selectedText)
+          }}
+        >
+          <span className="text-sm">🔊</span>
+          <span>Phát âm chậm</span>
+        </div>
+      )}
     </div>
   )
 }
