@@ -1240,8 +1240,11 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                   {syllabus?.pdf_file_path ? (
                     <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
                       <iframe
-                        src={`${syllabus.pdf_file_path}#toolbar=0`}
-                        className="w-full h-[65vh]"
+                        src={syllabus.pdf_file_path.startsWith('http') 
+                          ? `https://docs.google.com/viewer?url=${encodeURIComponent(syllabus.pdf_file_path)}&embedded=true`
+                          : `${syllabus.pdf_file_path}#toolbar=0`
+                        }
+                        className="w-full h-[65vh] border-0"
                         title="Tài liệu môn học"
                       />
                     </div>
@@ -1298,8 +1301,11 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                       isBookOpen ? (
                         <div className="relative w-full h-[52vh] rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
                           <iframe
-                            src={`${syllabus.pdf_file_path}#toolbar=0`}
-                            className="w-full h-full"
+                            src={syllabus.pdf_file_path.startsWith('http') 
+                              ? `https://docs.google.com/viewer?url=${encodeURIComponent(syllabus.pdf_file_path)}&embedded=true`
+                              : `${syllabus.pdf_file_path}#toolbar=0`
+                            }
+                            className="w-full h-full border-0"
                             title="Sách giáo khoa"
                           />
                         </div>
