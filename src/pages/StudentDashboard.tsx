@@ -1259,7 +1259,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab 1: Lecture Content */}
               {workspaceTab === 'lecture' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-7xl items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-start">
                   {/* Left Column: Lecture Theory Content */}
                   <div className="p-6 rounded-2xl glass-panel glow-indigo flex flex-col justify-between h-auto min-h-[60vh]">
                     <div>
