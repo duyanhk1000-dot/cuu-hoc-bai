@@ -501,7 +501,10 @@ export default function ParentDashboard() {
             
             const { data, error: uploadError } = await supabase.storage
               .from('textbooks')
-              .upload(fileName, file)
+              .upload(fileName, file, {
+                contentType: 'application/pdf',
+                upsert: true
+              })
               
             if (!uploadError) {
               const { data: { publicUrl: pUrl } } = supabase.storage
@@ -650,7 +653,10 @@ export default function ParentDashboard() {
         
         const { data, error: uploadError } = await supabase.storage
           .from('textbooks')
-          .upload(fileName, file)
+          .upload(fileName, file, {
+            contentType: 'application/pdf',
+            upsert: true
+          })
           
         if (!uploadError) {
           const { data: { publicUrl: pUrl } } = supabase.storage
