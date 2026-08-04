@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText, Home, MessageCircle } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
@@ -51,20 +51,22 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'light'
   })
 
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('light')
+      document.documentElement.classList.remove('dark')
     } else {
       document.documentElement.classList.remove('light')
+      document.documentElement.classList.add('dark')
     }
     localStorage.setItem('theme', theme)
   }, [theme])
 
   // Navigation tabs (dashboard level)
-  const [activeTab, setActiveTab] = useState<'lessons' | 'grades'>('lessons')
+  const [activeTab, setActiveTab] = useState<'home' | 'lessons' | 'grades'>('home')
 
   // Selected subject and lessons
   const [subjects, setSubjects] = useState<string[]>([])
@@ -72,6 +74,8 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
   const [syllabus, setSyllabus] = useState<Syllabus | null>(null)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [grades, setGrades] = useState<Grade[]>([])
+  const [allSyllabuses, setAllSyllabuses] = useState<Record<string, Syllabus>>({})
+  const [allLessons, setAllLessons] = useState<Record<string, Lesson[]>>({})
 
   // Active workspace (when student is study/taking test)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
@@ -634,6 +638,32 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
     setGrades(list)
   }
 
+  useEffect(() => {
+    if (subjects.length > 0) {
+      const fetchAllData = async () => {
+        const syls: Record<string, Syllabus> = {}
+        const less: Record<string, Lesson[]> = {}
+        await Promise.all(
+          subjects.map(async (sub) => {
+            try {
+              const [syl, lesList] = await Promise.all([
+                dataService.getSyllabus(sub),
+                dataService.getLessons(sub)
+              ])
+              if (syl) syls[sub] = syl
+              if (lesList) less[sub] = lesList
+            } catch (err) {
+              console.error(`Failed to load data for subject ${sub}:`, err)
+            }
+          })
+        )
+        setAllSyllabuses(syls)
+        setAllLessons(less)
+      }
+      fetchAllData()
+    }
+  }, [subjects])
+
   const loadSyllabusAndLessons = async (subject: string) => {
     try {
       const [syl, lesList] = await Promise.all([
@@ -885,167 +915,191 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Top Header Bar */}
-      <header className="border-b border-slate-800/80 glass-panel flex flex-col md:flex-row items-center justify-between py-3 px-6 h-auto md:h-16 gap-3 z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center glow-indigo animate-pulse-subtle">
-            <GraduationCap className="w-6 h-6 text-slate-100" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
+      {/* 1. SIDEBAR NAVBAR (DESKTOP) */}
+      {!activeLesson && (
+        <nav className="hidden md:flex flex-col w-64 h-full fixed left-0 top-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800/80 py-6 px-4 z-40">
+          {/* Brand Logo */}
+          <div className="mb-8 px-2">
+            <h1 className="text-xl font-black text-primary dark:text-indigo-400 flex items-center gap-2.5">
+              <GraduationCap className="w-7 h-7 text-primary dark:text-indigo-400" />
+              <span>Cựu Học Bài</span>
+            </h1>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-white leading-none">Cổng Học Sinh</h1>
-            <span className="text-xs text-indigo-400">Không gian học tập & luyện đề thi</span>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          {/* Virtual Pet Widget */}
-          {studentPet && (
-            <div 
-              onClick={() => {
-                playSound('squeak');
-                setIsPetModalOpen(true);
-              }}
-              className="flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-95 select-none h-10 group relative"
-              title="Nhấp để xem & chăm sóc thú cưng!"
+          {/* User info */}
+          <div className="flex items-center gap-3 mb-8 px-2">
+            {renderAvatar(profile.role, "w-10 h-10 border-2 border-primary object-cover shadow-sm")}
+            <div className="min-w-0">
+              <p className="font-bold text-slate-800 dark:text-slate-200 truncate">{profile.username}</p>
+              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span>Cấp {studentPet?.current_level || 1}</span>
+                <span>•</span>
+                <span className="text-amber-500 font-bold">🪙 {studentPet?.coins || 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav links */}
+          <ul className="flex-1 space-y-1">
+            <li>
+              <button
+                onClick={() => setActiveTab('home')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 text-sm ${
+                  activeTab === 'home'
+                    ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Home className="w-5 h-5" />
+                <span>Trang chủ</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab('lessons')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 text-sm ${
+                  activeTab === 'lessons'
+                    ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                <span>Môn học</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab('grades')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 text-sm ${
+                  activeTab === 'grades'
+                    ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Award className="w-5 h-5" />
+                <span>Bảng điểm</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setIsPetModalOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-150 text-sm"
+              >
+                <span>🐹</span>
+                <span>Thú cưng</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={onOpenCreative}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-150 text-sm"
+              >
+                <span>🎨</span>
+                <span>Góc sáng tạo</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-150 text-sm"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Nhắn cho bố mẹ</span>
+              </button>
+            </li>
+          </ul>
+
+          {/* Footer of Sidebar */}
+          <div className="border-t border-slate-200 dark:border-slate-800/80 pt-4 mt-auto space-y-2">
+            <button
+              onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200 transition-colors text-sm"
             >
-              {/* Bars */}
-              <div className="hidden sm:flex flex-col gap-0.5 min-w-[70px] text-left">
-                {/* HP */}
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px]">❤️</span>
-                  <div className="flex-1 bg-slate-950 h-1 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${studentPet.current_hp < 30 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} 
-                      style={{ width: `${studentPet.current_hp}%` }}
-                    ></div>
-                  </div>
-                </div>
-                {/* EXP */}
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px]">⭐</span>
-                  <div className="flex-1 bg-slate-950 h-1 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-amber-500" 
-                      style={{ width: `${(studentPet.current_exp / ((studentPet.current_level * 200) + 100)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              <span>{theme === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}</span>
+            </button>
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors text-sm font-bold"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+        </nav>
+      )}
 
-              {/* Avatar */}
-              <div className="w-7 h-7 rounded-full bg-slate-950 flex items-center justify-center p-0.5 border border-indigo-500/25 group-hover:scale-105 transition-all overflow-hidden">
-                <img
-                  src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
-                  alt="Pet"
-                  className="max-w-full max-h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
-                  }}
-                />
-              </div>
+      {/* 2. MOBILE HEADER BAR */}
+      {!activeLesson && (
+        <header className="flex md:hidden justify-between items-center px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-40 w-full shadow-sm">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="w-6 h-6 text-primary dark:text-indigo-400" />
+            <h1 className="font-bold text-slate-800 dark:text-slate-200 text-base">Cựu Học Bài</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            {studentPet && (
+              <button 
+                onClick={() => setIsPetModalOpen(true)}
+                className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-full text-xs font-bold"
+              >
+                🪙 {studentPet.coins}
+              </button>
+            )}
+            <button
+              onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-primary rounded-lg transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={logout} 
+              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/10 rounded-lg transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+      )}
 
-              {/* Coins */}
-              <div className="flex items-center gap-0.5 text-xs font-bold text-amber-300">
-                <span>🪙</span>
-                <span>{studentPet.coins}</span>
-              </div>
-
-              {/* Gift chest notification badge */}
-              {petEvents.length > 0 && (
-                <div 
-                  className="animate-bounce bg-rose-500 text-white rounded-full p-1 border border-white text-[10px] absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 shadow-lg z-30"
-                  title={`Có ${petEvents.length} thử thách từ bố mẹ!`}
-                >
-                  🎁
-                </div>
-              )}
-            </div>
-          )}
-          {/* Nút thay đổi theme */}
-          <button
-            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-            className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-xl hover:bg-slate-900/50 transition-all active:scale-90"
-            title="Thay đổi giao diện Sáng/Tối"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          <span className="text-sm text-slate-300 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
-            {renderAvatar(profile.role, "w-6 h-6")}
-            <span>Học sinh: <strong className="text-indigo-300">{profile.username}</strong></span>
-          </span>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-3 py-1.5 rounded-lg border border-rose-500/20 transition-all text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            Đăng xuất
-          </button>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-y-auto lg:overflow-hidden">
-        {/* Sidebar chat & Subject selector */}
-        <aside className="lg:col-span-1 border-r border-slate-800/80 bg-slate-900/40 p-5 flex flex-col gap-6 overflow-y-auto">
-          {/* Active Lesson Header or normal select */}
-          {!activeLesson ? (
-            <div className="space-y-3">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chọn môn học</h2>
-              {subjects.length === 0 ? (
-                <p className="text-xs text-slate-500">Chưa có môn học nào được thiết kế. Vui lòng nhắc bố mẹ soạn bài trước!</p>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {subjects.map((sub) => (
-                    <button
-                      key={sub}
-                      onClick={() => setSelectedSubject(sub)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm flex items-center justify-between ${
-                        selectedSubject === sub
-                          ? 'bg-indigo-600/15 border-indigo-500/40 text-indigo-200'
-                          : 'bg-slate-900/30 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <BookOpen className="w-4 h-4" />
-                        <span>{sub}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4 bg-indigo-950/20 border border-indigo-500/25 p-4 rounded-2xl glow-indigo">
-              <div>
+      {/* 3. MAIN WORKSPACE / CONTENT CANVAS */}
+      <div className={`flex-1 flex flex-col ${!activeLesson ? 'md:ml-64 pb-[80px] md:pb-6' : ''} overflow-y-auto`}>
+        {/* CASE A: STUDENT IS STUDYING A SPECIFIC LESSON */}
+        {activeLesson ? (
+          <div className="flex-1 flex flex-col bg-slate-950 text-slate-100 min-h-screen">
+            {/* STUDY WORKSPACE HEADER */}
+            <header className="border-b border-slate-800/80 glass-panel flex flex-col md:flex-row items-center justify-between py-3 px-6 h-auto md:h-16 gap-3 z-20">
+              <div className="flex items-center gap-3">
                 <span className="text-[10px] bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full font-bold uppercase">
                   Đang học
                 </span>
-                <h3 className="text-sm font-bold text-slate-200 mt-2">{activeLesson.subject}</h3>
-                <p className="text-xs text-indigo-300 mt-0.5">Buổi {activeLesson.lesson_number}: {activeLesson.title}</p>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-200">{activeLesson.subject}</h3>
+                  <p className="text-xs text-indigo-300 mt-0.5">Buổi {activeLesson.lesson_number}: {activeLesson.title}</p>
+                </div>
               </div>
+              <div className="flex items-center gap-4">
+                {studentPet && (
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-850 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-300">
+                    <span>🪙 {studentPet.coins}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (isTimerRunning && !confirm('Bạn đang trong bài kiểm tra. Trở lại sẽ nộp bài ngay lập tức! Bạn có đồng ý?')) return;
+                    stopTimer()
+                    setActiveLesson(null)
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Trở lại danh sách buổi học
+                </button>
+              </div>
+            </header>
 
-              <button
-                onClick={() => {
-                  if (isTimerRunning && !confirm('Bạn đang trong bài kiểm tra. Trở lại sẽ nộp bài ngay lập tức! Bạn có đồng ý?')) return;
-                  stopTimer()
-                  setActiveLesson(null)
-                }}
-                className="w-full py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Trở lại danh sách buổi học
-              </button>
-            </div>
-          )}
-        </aside>
-
-        {/* Dashboard Work Panel */}
-        <section className="lg:col-span-3 p-6 flex flex-col overflow-y-auto">
-          {/* CASE A: STUDENT IS STUDYING A SPECIFIC LESSON */}
-          {activeLesson ? (
-            <div className="flex-1 flex flex-col gap-5">
+            <section className="p-6 flex flex-col overflow-y-auto flex-1 bg-slate-950 text-slate-100">
+              <div className="flex-1 flex flex-col gap-5">
               {/* Workspace Navigation Bar */}
               <div className="flex border-b border-slate-800/80 pb-0.5 justify-between items-center">
                 <div className="flex gap-6">
@@ -1445,61 +1499,283 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                 </div>
               )}
             </div>
-          ) : (
-            /* CASE B: NORMAL STUDENT DASHBOARD (LESSON LIST & GRADES HISTORY) */
-            <div className="flex-1 flex flex-col gap-6">
-              {/* Tab Navigation */}
-              <div className="flex justify-between items-center border-b border-slate-800/80 pb-0.5">
-                <div className="flex gap-6">
-                  <button
-                    onClick={() => setActiveTab('lessons')}
-                    className={`pb-3 text-sm font-semibold transition-all relative ${
-                      activeTab === 'lessons' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {activeTab === 'lessons' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                    Danh sách buổi học
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('grades')}
-                    className={`pb-3 text-sm font-semibold transition-all relative ${
-                      activeTab === 'grades' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {activeTab === 'grades' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>}
-                    Bảng điểm & Nhận xét
-                  </button>
-                </div>
-
-                {/* Nút Góc sáng tạo ở góc bên phải khoanh đỏ */}
-                <button
-                  onClick={onOpenCreative}
-                  className="pb-2.5 flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:text-purple-300 transition-all select-none group"
-                >
-                  <span className="text-sm group-hover:animate-spin-slow">🎨</span>
-                  <span>Góc sáng tạo</span>
-                  <span className="text-[9px] bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full text-purple-400">vui chơi</span>
-                </button>
+          </section>
+        </div>
+      ) : (
+        /* CASE B: NORMAL STUDENT DASHBOARD (HOME BENTO, LESSON LIST, OR GRADES HISTORY) */
+        <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+          
+          {/* CASE B-1: HOME TAB BENTO GRID */}
+          {activeTab === 'home' && (
+            <div className="p-6 md:p-10 flex flex-col gap-8 max-w-6xl mx-auto w-full">
+              {/* Welcome banner */}
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-200">
+                  Chào bạn, {profile.username}! 👋
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 font-medium">
+                  Sẵn sàng cho một ngày học tập tuyệt vời chưa?
+                </p>
               </div>
 
-              {/* Sub-Tab 1: List of Lessons of selected subject */}
-              {activeTab === 'lessons' && (
-                <div className="space-y-4">
-                  {!selectedSubject ? (
-                    <div className="p-12 text-center rounded-2xl glass-card border border-slate-800 flex flex-col items-center justify-center gap-3">
-                      <BookOpen className="w-10 h-10 text-slate-600" />
-                      <p className="text-slate-400 text-sm font-medium">Bố mẹ chưa thiết kế môn học nào cho bạn. Hãy nhắc bố mẹ nhé!</p>
+              {/* Bento Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column: Subjects */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <span className="text-xl">📚</span>
+                      <span>Môn học của bạn</span>
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {subjects.length === 0 ? (
+                      <div className="col-span-2 p-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-center shadow-sm">
+                        <p className="text-slate-400 text-sm font-medium">Bố mẹ chưa tạo môn học nào. Hãy nhắc bố mẹ nhé!</p>
+                      </div>
+                    ) : (
+                      subjects.map((sub) => {
+                        const sylForSub = allSyllabuses[sub] || null
+                        const lessonsForSub = allLessons[sub] || []
+                        const totalLessons = sylForSub?.total_lessons || 30
+                        
+                        // Completed count
+                        const completedCount = lessonsForSub.filter(l => 
+                          grades.some(g => g.student_username === profile.username && g.lesson_id === l.id && g.score >= 5)
+                        ).length
+                        const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
+
+                        // Average score
+                        const subGrades = grades.filter(g => g.subject === sub)
+                        const avgScore = subGrades.length > 0 
+                          ? (subGrades.reduce((sum, g) => sum + g.score, 0) / subGrades.length).toFixed(1)
+                          : null
+
+                        // Color configuration
+                        let themeBg = 'bg-primary-container/10 text-primary'
+                        let themePill = 'bg-[#0284c7]'
+                        let icon = '📖'
+                        if (sub.toLowerCase().includes('toán')) {
+                          themeBg = 'bg-[#e0f2fe] text-[#0284c7]'
+                          themePill = 'bg-[#0284c7]'
+                          icon = '🧮'
+                        } else if (sub.toLowerCase().includes('anh') || sub.toLowerCase().includes('english')) {
+                          themeBg = 'bg-[#fce7f3] text-[#db2777]'
+                          themePill = 'bg-[#db2777]'
+                          icon = '🌍'
+                        } else if (sub.toLowerCase().includes('văn') || sub.toLowerCase().includes('việt')) {
+                          themeBg = 'bg-[#dcfce7] text-[#16a34a]'
+                          themePill = 'bg-[#16a34a]'
+                          icon = '✍️'
+                        }
+
+                        return (
+                          <div
+                            key={sub}
+                            onClick={() => {
+                              setSelectedSubject(sub)
+                              setActiveTab('lessons')
+                            }}
+                            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/40 dark:hover:border-indigo-500/40 transition-all duration-200 cursor-pointer flex flex-col group relative overflow-hidden"
+                          >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-full pointer-events-none"></div>
+                            <div className="flex justify-between items-start mb-4">
+                              <div className={`w-10 h-10 rounded-xl ${themeBg} flex items-center justify-center text-lg font-bold group-hover:scale-105 transition-transform`}>
+                                {icon}
+                              </div>
+                              <span className="bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 px-3 py-1 rounded-full text-[11px] font-bold border border-slate-200/60 dark:border-slate-700/50">
+                                {totalLessons} buổi học
+                              </span>
+                            </div>
+
+                            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1">{sub}</h4>
+                            <p className="text-slate-450 dark:text-slate-400 text-xs mb-6 truncate">{sylForSub?.textbook_content || 'Chương trình học chuẩn'}</p>
+
+                            <div className="mt-auto space-y-2">
+                              <div className="flex justify-between text-xs font-bold">
+                                <span className="text-slate-500 dark:text-slate-400">
+                                  {avgScore ? `Điểm TB: ${avgScore}đ` : 'Tiến độ'}
+                                </span>
+                                <span className="text-primary dark:text-indigo-400">{progressPercent}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-850 rounded-full h-2 overflow-hidden">
+                                <div className={`${themePill} h-2 rounded-full transition-all duration-300`} style={{ width: `${progressPercent}%` }}></div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+
+                    {/* Creative Corner Banner */}
+                    <div className="bg-gradient-to-r from-primary to-primary-container text-white p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:col-span-2">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,white,transparent_70%)]"></div>
+                      <div>
+                        <span className="text-3xl mb-1.5 block">🏆</span>
+                        <h4 className="font-black text-lg tracking-wider">Giải Đấu Học Tập Cuối Tuần</h4>
+                        <p className="text-xs opacity-90 mt-1 max-w-md">Làm bài tập nhận xu vàng để nâng cấp nhà cho thú cưng và mở khóa những phần quà giá trị nhất!</p>
+                      </div>
+                      <button
+                        onClick={onOpenCreative}
+                        className="bg-white text-primary font-bold px-5 py-2.5 rounded-xl text-xs hover:bg-slate-100 transition-colors shadow-lg active:scale-95 duration-150 md:shrink-0 w-fit"
+                      >
+                        Vào chơi ngay 🎨
+                      </button>
                     </div>
-                  ) : !syllabus ? (
-                    <div className="p-12 text-center rounded-2xl glass-card border border-slate-800 flex flex-col items-center justify-center gap-3">
+                  </div>
+                </div>
+
+                {/* Right Column: Recent Activity */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span className="text-xl">⏳</span>
+                    <span>Hoạt động gần đây</span>
+                  </h3>
+
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+                    {grades.length === 0 ? (
+                      <p className="text-slate-400 text-xs py-6 text-center font-medium">Chưa làm bài thi nào.</p>
+                    ) : (
+                      [...grades]
+                        .sort((a, b) => new Date(b.submitted_at!).getTime() - new Date(a.submitted_at!).getTime())
+                        .slice(0, 3)
+                        .map((g) => {
+                          const dateObj = new Date(g.submitted_at!)
+                          const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()]
+                          const dayNum = dateObj.getDate()
+
+                          return (
+                            <div
+                              key={g.id}
+                              onClick={() => {
+                                const matchedLesson = lessons.find(l => l.id === g.lesson_id)
+                                if (matchedLesson) {
+                                  setActiveLesson(matchedLesson)
+                                  setTestResult(JSON.parse(g.ai_feedback))
+                                  setAnswers(JSON.parse(g.answers))
+                                  setWorkspaceTab('result')
+                                } else {
+                                  alert('Nhấp vào bài làm ở tab Bảng điểm để xem nhận xét chi tiết nhé!')
+                                }
+                              }}
+                              className="p-3.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 border border-transparent hover:border-slate-200/70 dark:hover:border-slate-800 transition-all cursor-pointer group flex items-center gap-3.5"
+                            >
+                              <div className="w-11 h-11 rounded-xl bg-primary-container/10 flex flex-col items-center justify-center shrink-0">
+                                <span className="text-[10px] leading-none text-primary dark:text-indigo-400 font-bold">{dayName}</span>
+                                <span className="text-sm font-black text-primary dark:text-indigo-300 mt-0.5">{dayNum}</span>
+                              </div>
+                              <div className="flex-1 min-w-0 font-medium">
+                                <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate group-hover:text-primary dark:group-hover:text-indigo-300 transition-colors">
+                                  Buổi {g.lesson_number}: {g.lesson_title}
+                                </h5>
+                                <p className="text-xs text-slate-400 mt-0.5 truncate">{g.subject}</p>
+                              </div>
+                              <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                                {g.score.toFixed(1)}đ
+                              </span>
+                            </div>
+                          )
+                        })
+                    )}
+
+                    <button
+                      onClick={() => setActiveTab('grades')}
+                      className="w-full py-2.5 text-xs font-bold text-primary dark:text-indigo-400 hover:bg-primary-container/10 rounded-xl transition-colors mt-2"
+                    >
+                      Xem lịch sử chi tiết ➔
+                    </button>
+                  </div>
+
+                  {/* Quick Pet Widget */}
+                  {studentPet && (
+                    <div 
+                      onClick={() => setIsPetModalOpen(true)}
+                      className="bg-tertiary-container/10 border border-tertiary/20 p-5 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-tertiary/40 hover:bg-tertiary-container/15 transition-all group"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-indigo-500/25 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-all">
+                        <img
+                          src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
+                          alt="Pet"
+                          className="w-10 h-10 object-contain animate-float"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Thú cưng Cấp {studentPet.current_level}</h5>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">❤️ HP: {studentPet.current_hp}% | ⭐ EXP: {studentPet.current_exp}</p>
+                      </div>
+                      <span className="text-xl">🐹</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CASE B-2: SUBJECTS AND LESSONS CATALOG */}
+          {activeTab === 'lessons' && (
+            <div className="p-6 md:p-10 flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              {!selectedSubject ? (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-slate-200">Danh sách môn học</h2>
+                    <p className="text-slate-400 text-xs mt-1">Chọn môn học bên dưới để vào xem danh sách bài giảng chi tiết:</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {subjects.map(sub => {
+                      let icon = '📖'
+                      if (sub.toLowerCase().includes('toán')) icon = '🧮'
+                      else if (sub.toLowerCase().includes('anh')) icon = '🌍'
+                      else if (sub.toLowerCase().includes('văn') || sub.toLowerCase().includes('việt')) icon = '✍️'
+
+                      return (
+                        <div
+                          key={sub}
+                          onClick={() => setSelectedSubject(sub)}
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-primary/50 dark:hover:border-indigo-500/40 hover:shadow-md transition-all text-center flex flex-col items-center justify-center gap-4 group"
+                        >
+                          <span className="text-4xl group-hover:scale-110 transition-transform duration-200">{icon}</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-100 text-base">{sub}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-3 rounded-2xl shadow-sm">
+                    <button 
+                      onClick={() => setSelectedSubject('')}
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400"
+                      title="Quay lại danh sách môn học"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Đang chọn:</span>
+                    <select 
+                      value={selectedSubject}
+                      onChange={(e) => setSelectedSubject(e.target.value)}
+                      className="text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1.5 px-3 rounded-xl font-bold text-primary dark:text-indigo-400"
+                    >
+                      {subjects.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!syllabus ? (
+                    <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-3">
                       <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
                       <p className="text-slate-400 text-sm">Đang tải danh sách bài học...</p>
                     </div>
                   ) : (
                     <>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-900/40 p-4 border border-slate-800/80 rounded-2xl">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white dark:bg-slate-900 p-5 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
                         <div>
-                          <h3 className="font-bold text-white text-base">Bài giảng môn: {selectedSubject}</h3>
+                          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">Bài giảng môn: {selectedSubject}</h3>
                           <span className="text-xs text-slate-400">Lộ trình chốt: {syllabus.total_lessons} buổi học</span>
                         </div>
                         {syllabus.pdf_file_path && (
@@ -1507,7 +1783,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                             href={syllabus.pdf_file_path}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all w-fit shadow-sm shadow-indigo-500/5 active:scale-95"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary dark:text-indigo-400 border border-primary/20 rounded-xl text-xs font-bold transition-all w-fit shadow-sm active:scale-95"
                           >
                             <FileText className="w-4 h-4" />
                             Xem & Tải Tài Liệu Sách PDF
@@ -1533,29 +1809,29 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                               key={lessonNum}
                               className={`p-5 rounded-2xl border flex flex-col justify-between h-[180px] transition-all ${
                                 existingLesson
-                                  ? 'bg-slate-900/50 border-slate-800 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5'
-                                  : 'bg-slate-900/20 border-slate-800/80 opacity-55 cursor-not-allowed'
+                                  ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-primary/50 dark:hover:border-indigo-500/40 hover:shadow-md'
+                                  : 'bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/80 opacity-55 cursor-not-allowed'
                               }`}
                             >
                               <div>
                                 <div className="flex justify-between items-center mb-2">
-                                  <span className="text-xs font-bold text-indigo-400">Buổi số {lessonNum}</span>
+                                  <span className="text-xs font-bold text-primary dark:text-indigo-400">Buổi số {lessonNum}</span>
                                   {existingLesson ? (
-                                    <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 px-2 py-0.5 rounded-full flex items-center gap-1.5 font-bold">
+                                    <span className="text-[10px] bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center gap-1.5 font-bold">
                                       <span>Sẵn sàng</span>
                                       {bestScore !== null && (
-                                        <span className="bg-indigo-500/20 text-indigo-200 px-1 py-0.2 rounded font-black border border-indigo-500/30">
+                                        <span className="bg-primary/20 text-primary dark:bg-indigo-500/20 dark:text-indigo-200 px-1 py-0.2 rounded font-black">
                                           {bestScore}/10 đ
                                         </span>
                                       )}
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
+                                    <span className="text-[10px] bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500 px-2 py-0.5 rounded-full">
                                       Chưa soạn
                                     </span>
                                   )}
                                 </div>
-                                <h4 className="text-sm font-semibold text-slate-200 line-clamp-2">
+                                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-2">
                                   {existingLesson ? existingLesson.title : 'Chờ bố mẹ biên soạn nội dung bài giảng'}
                                 </h4>
                                 {existingLesson && (
@@ -1569,14 +1845,14 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                 {existingLesson ? (
                                   <button
                                     onClick={() => startLesson(existingLesson)}
-                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-indigo-500/5"
+                                    className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md hover:bg-primary/95 dark:bg-indigo-650 dark:hover:bg-indigo-700"
                                   >
                                     Vào học bài
                                   </button>
                                 ) : (
                                   <button
                                     disabled
-                                    className="w-full py-2 bg-slate-900 text-slate-600 text-xs font-semibold rounded-lg border border-slate-800 cursor-not-allowed"
+                                    className="w-full py-2 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-650 cursor-not-allowed"
                                   >
                                     Đang khóa
                                   </button>
@@ -1590,105 +1866,163 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                   )}
                 </div>
               )}
+            </div>
+          )}
 
-              {/* Sub-Tab 2: Grade History List */}
-              {activeTab === 'grades' && (
-                <div className="space-y-4">
+          {/* CASE B-3: GRADES / QUIZ RESULTS HISTORY */}
+          {activeTab === 'grades' && (
+            <div className="p-6 md:p-10 flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">Lịch sử kết quả bài thi</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Nơi lưu trữ tất cả các bài tập bạn đã hoàn thành kèm theo nhận xét</p>
+              </div>
+
+              {grades.length === 0 ? (
+                <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-3 shadow-sm">
+                  <Award className="w-12 h-12 text-slate-400" />
                   <div>
-                    <h3 className="font-bold text-white text-base">Lịch sử kết quả bài thi</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Nơi lưu trữ tất cả các bài tập bạn đã hoàn thành kèm theo nhận xét</p>
+                    <h4 className="font-bold text-slate-700 dark:text-slate-300">Chưa có kết quả thi nào</h4>
+                    <p className="text-slate-400 text-xs mt-1">Kết quả bài làm của bạn sẽ xuất hiện tại đây sau khi bạn nộp bài thi.</p>
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {Object.entries(
+                    grades.reduce((acc, g) => {
+                      const sub = g.subject || 'Khác'
+                      if (!acc[sub]) acc[sub] = []
+                      acc[sub].push(g)
+                      return acc
+                    }, {} as Record<string, Grade[]>)
+                  ).map(([subjectName, subjectGrades]) => (
+                    <div key={subjectName} className="space-y-3 text-left">
+                      <h4 className="text-sm font-bold text-primary dark:text-indigo-400 border-b border-slate-200 dark:border-slate-800 pb-1 text-left uppercase tracking-wider flex items-center gap-2">
+                        <span>📚</span> Môn học: {subjectName} ({subjectGrades.length} bài)
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {subjectGrades.map((g) => (
+                          <div key={g.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-all">
+                            <div>
+                              <div className="flex justify-between items-start gap-4">
+                                <div>
+                                  <span className="text-[10px] bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-400 border border-primary/20 px-2 py-0.5 rounded-full font-bold">
+                                    Buổi {g.lesson_number}
+                                  </span>
+                                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1.5">{g.lesson_title}</h4>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
+                                  g.score >= 8
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    : g.score >= 5
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                }`}>
+                                  {g.score.toFixed(1)}đ
+                                </span>
+                              </div>
+                              
+                              <div className="mt-3 text-xs text-slate-650 dark:text-slate-355 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl leading-relaxed line-clamp-3 border border-slate-100 dark:border-slate-800/80">
+                                <strong>Giáo viên nhận xét:</strong> {(() => {
+                                  try {
+                                    return JSON.parse(g.ai_feedback).overall_feedback;
+                                  } catch {
+                                    return g.ai_feedback;
+                                  }
+                                })()}
+                              </div>
+                            </div>
 
-                  {grades.length === 0 ? (
-                    <div className="p-12 text-center rounded-2xl glass-card border border-slate-800 flex flex-col items-center justify-center gap-3">
-                      <Award className="w-12 h-12 text-slate-600" />
-                      <div>
-                        <h4 className="font-bold text-slate-300">Chưa có kết quả thi nào</h4>
-                        <p className="text-slate-500 text-xs mt-1">Kết quả bài làm của bạn sẽ xuất hiện tại đây sau khi bạn nộp bài thi.</p>
+                            <div className="flex justify-between items-center mt-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                              <span className="text-[10px] text-slate-400">
+                                Ngày thi: {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const matchedLesson = lessons.find(l => l.id === g.lesson_id)
+                                  if (matchedLesson) {
+                                    setActiveLesson(matchedLesson)
+                                    setTestResult(JSON.parse(g.ai_feedback))
+                                    setAnswers(JSON.parse(g.answers))
+                                    setWorkspaceTab('result')
+                                  } else {
+                                    alert('Bài học liên quan không được tải sẵn trong môn học này.')
+                                  }
+                                }}
+                                className="text-xs bg-primary hover:bg-primary/95 text-white dark:bg-indigo-650 dark:hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg active:scale-95 transition-all shadow-sm"
+                              >
+                                Xem nhận xét chi tiết
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ) : (
-                    <div className="space-y-8">
-                      {Object.entries(
-                        grades.reduce((acc, g) => {
-                          const sub = g.subject || 'Khác'
-                          if (!acc[sub]) acc[sub] = []
-                          acc[sub].push(g)
-                          return acc
-                        }, {} as Record<string, Grade[]>)
-                      ).map(([subjectName, subjectGrades]) => (
-                        <div key={subjectName} className="space-y-3 text-left">
-                          <h4 className="text-sm font-bold text-indigo-400 border-b border-slate-800 pb-1 text-left uppercase tracking-wider flex items-center gap-2">
-                            <span>📚</span> Môn học: {subjectName} ({subjectGrades.length} bài)
-                          </h4>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {subjectGrades.map((g) => (
-                              <div key={g.id} className="p-5 rounded-2xl glass-panel glow-indigo border border-slate-800 flex flex-col justify-between gap-4">
-                                <div>
-                                  <div className="flex justify-between items-start gap-4">
-                                    <div>
-                                      <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
-                                        Buổi {g.lesson_number}
-                                      </span>
-                                      <h4 className="text-sm font-semibold text-slate-100 mt-1.5">{g.lesson_title}</h4>
-                                    </div>
-                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
-                                      g.score >= 8
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : g.score >= 5
-                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                    }`}>
-                                      {g.score.toFixed(1)}đ
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="mt-3 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-lg leading-relaxed line-clamp-3">
-                                    <strong>Giáo viên nhận xét:</strong> {(() => {
-                                      try {
-                                        return JSON.parse(g.ai_feedback).overall_feedback;
-                                      } catch {
-                                        return g.ai_feedback;
-                                      }
-                                    })()}
-                                  </div>
-                                </div>
-
-                                <div className="flex justify-between items-center mt-2 border-t border-slate-800/80 pt-3">
-                                  <span className="text-[10px] text-slate-500">
-                                    Ngày thi: {new Date(g.submitted_at!).toLocaleDateString('vi-VN')}
-                                  </span>
-                                  <button
-                                    onClick={() => {
-                                      const matchedLesson = lessons.find(l => l.id === g.lesson_id)
-                                      if (matchedLesson) {
-                                        setActiveLesson(matchedLesson)
-                                        setTestResult(JSON.parse(g.ai_feedback))
-                                        setAnswers(JSON.parse(g.answers))
-                                        setWorkspaceTab('result')
-                                      } else {
-                                        alert('Bài học liên quan không được tải sẵn trong môn học này.')
-                                      }
-                                    }}
-                                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg active:scale-95 transition-all"
-                                  >
-                                    Xem nhận xét chi tiết
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
           )}
-        </section>
-      </div>
+        </div>
+      )}
+    </div>
+
+    {/* 4. BOTTOM NAVIGATION BAR (MOBILE) */}
+    {!activeLesson && (
+      <nav className="fixed bottom-0 left-0 w-full z-45 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80 flex justify-around items-center py-2 px-4 shadow-[0px_-4px_20px_rgba(0,0,0,0.05)] md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
+        <button
+          onClick={() => setActiveTab('home')}
+          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 transition-transform ${
+            activeTab === 'home'
+              ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-[10px] font-bold mt-0.5">Home</span>
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('lessons')}
+          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 transition-transform ${
+            activeTab === 'lessons'
+              ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <BookOpen className="w-5 h-5" />
+          <span className="text-[10px] font-bold mt-0.5">Lessons</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('grades')}
+          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 transition-transform ${
+            activeTab === 'grades'
+              ? 'bg-primary/10 text-primary dark:bg-indigo-500/10 dark:text-indigo-300 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <Award className="w-5 h-5" />
+          <span className="text-[10px] font-bold mt-0.5">Results</span>
+        </button>
+
+        <button
+          onClick={() => setIsPetModalOpen(true)}
+          className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 rounded-xl px-4 py-1.5 active:scale-90 transition-transform"
+        >
+          <span className="text-lg">🐹</span>
+          <span className="text-[10px] font-bold mt-0.5">Pet</span>
+        </button>
+
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 rounded-xl px-4 py-1.5 active:scale-90 transition-transform"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-[10px] font-bold mt-0.5">Chat</span>
+        </button>
+      </nav>
+    )}
 
       {/* Floating Chat & Chat Panel */}
       <ChatPanel
