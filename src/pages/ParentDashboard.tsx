@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool, Check } from 'lucide-react'
+import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, Plus, CheckCircle, Award, Sparkles, Loader2, ArrowRight, Upload, Clock, Trash, Trash2, Sun, Moon, Key, PenTool, Check, AlertCircle, FileText } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
 import { supabase, isSupabaseConfigured } from '../supabaseClient'
 import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
@@ -122,6 +122,7 @@ export default function ParentDashboard() {
   const [extractingPdf, setExtractingPdf] = useState(false)
   const [pdfFileName, setPdfFileName] = useState('')
   const [uploadedPdfUrl, setUploadedPdfUrl] = useState('')
+  const [updatingPdf, setUpdatingPdf] = useState(false)
   const [activeCreateLessonNum, setActiveCreateLessonNum] = useState<number | null>(null)
   const [lessonReferenceText, setLessonReferenceText] = useState('')
 
@@ -627,6 +628,69 @@ export default function ParentDashboard() {
     }
   }
 
+  const handleUpdateSyllabusPdf = async (syl: Syllabus, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') {
+      alert('Chỉ chấp nhận tệp định dạng PDF!')
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
+      return
+    }
+
+    setUpdatingPdf(true)
+    try {
+      let publicUrl = ''
+      
+      if (isSupabaseConfigured) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+        
+        const { data, error: uploadError } = await supabase.storage
+          .from('textbooks')
+          .upload(fileName, file)
+          
+        if (!uploadError) {
+          const { data: { publicUrl: pUrl } } = supabase.storage
+            .from('textbooks')
+            .getPublicUrl(fileName)
+          publicUrl = pUrl
+        } else {
+          throw new Error(`Upload storage error: ${uploadError.message}`)
+        }
+      } else {
+        const reader = new FileReader()
+        const loadPromise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject('Lỗi đọc tệp cục bộ')
+        })
+        reader.readAsDataURL(file)
+        publicUrl = await loadPromise
+      }
+
+      const ok = await dataService.saveSyllabus(
+        syl.subject,
+        syl.content,
+        syl.total_lessons,
+        syl.textbook_content,
+        publicUrl
+      )
+
+      if (ok) {
+        alert('Cập nhật tài liệu sách giáo khoa PDF thành công!')
+        await loadSyllabusAndLessons(syl.subject)
+      } else {
+        alert('Lỗi lưu tài liệu sách vào cơ sở dữ liệu!')
+      }
+    } catch (err: any) {
+      alert(`Lỗi khi tải lên và cập nhật tài liệu sách: ${err.message || err}`)
+    } finally {
+      setUpdatingPdf(false)
+    }
+  }
+
   const handleGenerateLesson = async (lessonNum: number, feedback?: string) => {
     if (!syllabus) return
     setGeneratingLesson(true)
@@ -1000,15 +1064,85 @@ export default function ParentDashboard() {
               <div className="xl:col-span-3 p-6 rounded-2xl glass-panel glow-indigo min-h-[400px]">
                 {selectedSubject ? (
                   syllabus ? (
-                    <div>
-                      <div className="flex justify-between items-center mb-4 border-b border-slate-800/80 pb-3">
-                        <div>
-                          <h2 className="text-lg font-bold text-white">Lộ trình học môn: {selectedSubject}</h2>
-                          <span className="text-xs text-indigo-400">Độ dài: {syllabus.total_lessons} buổi học</span>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                      {/* Left: Syllabus Content (col-span-2) */}
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
+                          <div>
+                            <h2 className="text-lg font-extrabold text-white">Lộ trình học môn: {selectedSubject}</h2>
+                            <span className="text-xs text-indigo-400 font-bold">Độ dài: {syllabus.total_lessons} buổi học</span>
+                          </div>
+                        </div>
+                        <div className="prose prose-invert max-w-none max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+                          {renderFormattedText(syllabus.content)}
                         </div>
                       </div>
-                      <div className="prose prose-invert max-w-none max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
-                        {renderFormattedText(syllabus.content)}
+
+                      {/* Right: PDF Textbook Management (col-span-1) */}
+                      <div className="p-5 rounded-2xl bg-slate-950/40 border border-slate-800/60 space-y-4">
+                        <h3 className="font-extrabold text-white text-sm flex items-center gap-1.5 border-b border-slate-800/60 pb-2">
+                          <span>📚 Sách giáo khoa PDF</span>
+                        </h3>
+                        {syllabus.pdf_file_path ? (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                              <span className="font-bold truncate flex-1 text-left">Đã có tài liệu sách</span>
+                            </div>
+                            <a
+                              href={syllabus.pdf_file_path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-bold text-center block"
+                            >
+                              Xem tài liệu sách hiện tại
+                            </a>
+                            <div className="border-t border-slate-800/60 pt-3 space-y-2">
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold text-left">Đổi tài liệu sách mới (PDF)</label>
+                              <div className="relative border border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-slate-950/40">
+                                <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={(e) => handleUpdateSyllabusPdf(syllabus, e)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  disabled={updatingPdf}
+                                />
+                                {updatingPdf ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                                ) : (
+                                  <span className="text-[11px] text-indigo-400 font-bold">Tải tệp PDF mới</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                              <span className="font-bold text-left">Chưa có tài liệu sách</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 leading-relaxed font-semibold text-left">
+                              Môn học này chưa có sách giáo khoa PDF đính kèm cho con xem trực tiếp. Hãy tải tệp PDF lên để bổ sung.
+                            </p>
+                            <div className="relative border border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-slate-950/40">
+                              <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={(e) => handleUpdateSyllabusPdf(syllabus, e)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  disabled={updatingPdf}
+                              />
+                              {updatingPdf ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                              ) : (
+                                <div className="space-y-1">
+                                  <Upload className="w-4 h-4 text-indigo-400 mx-auto" />
+                                  <span className="text-xs text-indigo-400 font-bold block">Tải tài liệu sách PDF</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

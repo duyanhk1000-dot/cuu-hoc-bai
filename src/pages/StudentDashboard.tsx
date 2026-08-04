@@ -67,6 +67,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
   // Navigation tabs (dashboard level)
   const [activeTab, setActiveTab] = useState<'home' | 'lessons' | 'grades'>('home')
+  const [isBookOpen, setIsBookOpen] = useState(true)
 
   // Selected subject and lessons
   const [subjects, setSubjects] = useState<string[]>([])
@@ -882,20 +883,20 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
       return part.split('\n').map((line, lIdx) => {
         const lineKey = `${idx}-${lIdx}`;
         if (line.startsWith('### ')) {
-          return <h4 key={lineKey} className="text-sm font-bold text-indigo-300 mt-4 mb-2">{customParseMathAndText(line.replace('### ', ''))}</h4>
+          return <h4 key={lineKey} className="text-base font-extrabold text-slate-900 dark:text-indigo-300 mt-4 mb-2">{customParseMathAndText(line.replace('### ', ''))}</h4>
         }
         if (line.startsWith('## ')) {
-          return <h3 key={lineKey} className="text-base font-bold text-indigo-200 mt-5 mb-3">{customParseMathAndText(line.replace('## ', ''))}</h3>
+          return <h3 key={lineKey} className="text-lg font-extrabold text-slate-950 dark:text-indigo-200 mt-5 mb-3">{customParseMathAndText(line.replace('## ', ''))}</h3>
         }
         if (line.startsWith('# ')) {
-          return <h2 key={lineKey} className="text-lg font-bold text-white mt-6 mb-4 border-b border-slate-700/50 pb-1">{customParseMathAndText(line.replace('# ', ''))}</h2>
+          return <h2 key={lineKey} className="text-xl font-extrabold text-slate-950 dark:text-white mt-6 mb-4 border-b border-slate-200 dark:border-slate-800 pb-1">{customParseMathAndText(line.replace('# ', ''))}</h2>
         }
         if (line.startsWith('* ') || line.startsWith('- ')) {
           const content = line.replace(/^[\*\-]\s+/, '')
           const subParts = content.split(/(\*\*.*?\*\*)/g)
           return (
-            <li key={lineKey} className="text-slate-300 text-sm leading-relaxed ml-4 list-disc mb-1 font-normal">
-              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
+            <li key={lineKey} className="text-slate-800 dark:text-slate-200 text-base leading-relaxed ml-6 list-disc mb-2 font-medium">
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-black dark:text-white font-extrabold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
             </li>
           )
         }
@@ -903,13 +904,13 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
         if (line.includes('**')) {
           const subParts = line.split(/(\*\*.*?\*\*)/g)
           return (
-            <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">
-              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-indigo-200 font-semibold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
+            <p key={lineKey} className="text-slate-800 dark:text-slate-200 text-base leading-relaxed mb-3 font-medium">
+              {subParts.map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i} className="text-black dark:text-white font-extrabold">{customParseMathAndText(p.slice(2, -2))}</strong> : customParseMathAndText(p))}
             </p>
           )
         }
 
-        return <p key={lineKey} className="text-slate-300 text-sm leading-relaxed mb-2 font-normal">{customParseMathAndText(line)}</p>
+        return <p key={lineKey} className="text-slate-800 dark:text-slate-200 text-base leading-relaxed mb-3 font-medium">{customParseMathAndText(line)}</p>
       });
     });
   }
@@ -1258,20 +1259,74 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab 1: Lecture Content */}
               {workspaceTab === 'lecture' && (
-                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl">
-                  <h2 className="text-xl font-bold text-white mb-4 border-b border-slate-800 pb-3">
-                    Bài {activeLesson.lesson_number}: {activeLesson.title}
-                  </h2>
-                  <div className="prose prose-invert max-w-none max-h-[60vh] overflow-y-auto pr-3 scrollbar-thin">
-                    {renderFormattedText(activeLesson.lecture_content)}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-7xl items-start">
+                  {/* Left Column: Lecture Theory Content */}
+                  <div className="p-6 rounded-2xl glass-panel glow-indigo flex flex-col justify-between h-auto min-h-[60vh]">
+                    <div>
+                      <h2 className="text-xl font-bold text-white mb-4 border-b border-slate-800 pb-3">
+                        Bài {activeLesson.lesson_number}: {activeLesson.title}
+                      </h2>
+                      <div className="prose prose-invert max-w-none max-h-[55vh] overflow-y-auto pr-3 scrollbar-thin">
+                        {renderFormattedText(activeLesson.lecture_content)}
+                      </div>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => setWorkspaceTab('flashcards')}
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-extrabold rounded-xl active:scale-95 transition-all shadow-md duration-150"
+                      >
+                        Chuyển sang ôn tập Flashcards
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={() => setWorkspaceTab('flashcards')}
-                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-md shadow-indigo-500/10"
-                    >
-                      Chuyển sang ôn tập Flashcards
-                    </button>
+
+                  {/* Right Column: PDF Textbook Viewer */}
+                  <div className="p-6 rounded-2xl glass-panel glow-indigo flex flex-col h-auto min-h-[60vh]">
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                      <h3 className="text-lg font-bold text-white">Tài liệu sách giáo khoa</h3>
+                      {syllabus?.pdf_file_path && (
+                        <button
+                          onClick={() => setIsBookOpen(prev => !prev)}
+                          className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-bold transition-all"
+                        >
+                          {isBookOpen ? 'Ẩn sách' : 'Mở xem sách'}
+                        </button>
+                      )}
+                    </div>
+
+                    {syllabus?.pdf_file_path ? (
+                      isBookOpen ? (
+                        <div className="relative w-full h-[52vh] rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                          <iframe
+                            src={`${syllabus.pdf_file_path}#toolbar=0`}
+                            className="w-full h-full"
+                            title="Sách giáo khoa"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 bg-slate-950/20 border border-dashed border-slate-850 rounded-xl">
+                          <span className="text-4xl">📖</span>
+                          <div>
+                            <h4 className="font-bold text-slate-300 text-sm">Sách giáo khoa đã sẵn sàng</h4>
+                            <p className="text-slate-500 text-xs mt-1">Nhấp nút bên dưới để mở xem sách trực tiếp.</p>
+                          </div>
+                          <button
+                            onClick={() => setIsBookOpen(true)}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all active:scale-95"
+                          >
+                            Mở xem sách ngay
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 bg-slate-950/20 border border-dashed border-slate-850 rounded-xl">
+                        <span className="text-4xl">📭</span>
+                        <div>
+                          <h4 className="font-bold text-slate-400 text-sm">Chưa tải sách PDF lên</h4>
+                          <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">Môn học này chưa có tài liệu sách giáo khoa PDF. Con hãy nhắc bố mẹ cập nhật ở Cổng Phụ Huynh nhé!</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1457,7 +1512,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                   {/* Overall Feedback */}
                   <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nhận xét tổng quát của Giáo viên</span>
-                    <p className="text-sm text-slate-200 leading-relaxed font-medium">
+                    <p className="text-base text-black dark:text-slate-100 font-extrabold leading-relaxed">
                       <MathRenderer content={testResult.overall_feedback} />
                     </p>
                   </div>
@@ -1489,8 +1544,8 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                           <p className="text-slate-400">
                             👉 **Bài làm của bạn:** <span className="text-slate-100 font-medium"><MathRenderer content={q.student_answer || "(Chưa trả lời)"} /></span>
                           </p>
-                          <div className="p-3 bg-slate-950/60 rounded-lg text-slate-300 leading-relaxed">
-                            <strong>Lời giải & Nhận xét của Giáo viên:</strong> <MathRenderer content={q.correct_explanation} />
+                          <div className="p-3 bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-black dark:text-slate-100 font-extrabold leading-relaxed">
+                            <strong className="text-black dark:text-white font-extrabold">Lời giải & Nhận xét của Giáo viên:</strong> <MathRenderer content={q.correct_explanation} />
                           </div>
                         </div>
                       </div>
@@ -1851,7 +1906,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                 {existingLesson ? (
                                   <button
                                     onClick={() => startLesson(existingLesson)}
-                                    className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md hover:bg-primary/95 dark:bg-indigo-650 dark:hover:bg-indigo-700"
+                                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md duration-150"
                                   >
                                     Vào học bài
                                   </button>
@@ -1928,7 +1983,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                 </span>
                               </div>
                               
-                              <div className="mt-3 text-xs text-slate-650 dark:text-slate-355 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl leading-relaxed line-clamp-3 border border-slate-100 dark:border-slate-800/80">
+                              <div className="mt-3 text-xs text-black dark:text-slate-100 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl leading-relaxed line-clamp-3 border border-slate-200 dark:border-slate-800/80 font-extrabold">
                                 <strong>Giáo viên nhận xét:</strong> {(() => {
                                   try {
                                     return JSON.parse(g.ai_feedback).overall_feedback;
@@ -1955,7 +2010,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                     alert('Bài học liên quan không được tải sẵn trong môn học này.')
                                   }
                                 }}
-                                className="text-xs bg-primary hover:bg-primary/95 text-white dark:bg-indigo-650 dark:hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg active:scale-95 transition-all shadow-sm"
+                                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg active:scale-95 transition-all shadow-md duration-150"
                               >
                                 Xem nhận xét chi tiết
                               </button>
