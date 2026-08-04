@@ -923,7 +923,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
           <div className="mb-8 px-2">
             <h1 className="text-xl font-black text-primary dark:text-indigo-400 flex items-center gap-2.5">
               <GraduationCap className="w-7 h-7 text-primary dark:text-indigo-400" />
-              <span>Cựu Học Bài</span>
+              <span>Cừu Học Bài</span>
             </h1>
           </div>
 
@@ -1035,7 +1035,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
         <header className="flex md:hidden justify-between items-center px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-40 w-full shadow-sm">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary dark:text-indigo-400" />
-            <h1 className="font-bold text-slate-800 dark:text-slate-200 text-base">Cựu Học Bài</h1>
+            <h1 className="font-bold text-slate-800 dark:text-slate-200 text-base">Cừu Học Bài</h1>
           </div>
           <div className="flex items-center gap-3">
             {studentPet && (
@@ -1508,22 +1508,50 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
           {/* CASE B-1: HOME TAB BENTO GRID */}
           {activeTab === 'home' && (
             <div className="p-6 md:p-10 flex flex-col gap-8 max-w-6xl mx-auto w-full">
-              {/* Welcome banner */}
-              <div>
-                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-200">
-                  Chào bạn, {profile.username}! 👋
-                </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 font-medium">
-                  Sẵn sàng cho một ngày học tập tuyệt vời chưa?
-                </p>
+              {/* Welcome banner & Pet Widget side by side */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-black dark:text-white tracking-tight">
+                    Chào bạn, {profile.username}! 👋
+                  </h2>
+                  <p className="text-slate-500 dark:text-slate-455 text-sm mt-2 font-bold">
+                    Sẵn sàng cho một ngày học tập tuyệt vời chưa?
+                  </p>
+                </div>
+                {studentPet && (
+                  <div 
+                    onClick={() => setIsPetModalOpen(true)}
+                    className="flex items-center gap-4 bg-tertiary-container/10 border border-tertiary/20 px-5 py-3.5 rounded-2xl cursor-pointer hover:border-tertiary/40 hover:bg-tertiary-container/15 transition-all group shrink-0"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-slate-900 border border-indigo-500/20 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-all shadow-inner">
+                      <img
+                        src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
+                        alt="Pet"
+                        className="w-10 h-10 object-contain animate-float"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
+                        }}
+                      />
+                    </div>
+                    <div className="text-left">
+                      <h5 className="font-extrabold text-black dark:text-slate-100 text-sm flex items-center gap-1.5">
+                        <span>Thú cưng Cấp {studentPet.current_level}</span>
+                        <span className="text-lg">🐹</span>
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-455 mt-1 font-bold">
+                        ❤️ HP: {studentPet.current_hp}% | 🪙 {studentPet.coins} xu
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bento Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Left Column: Subjects */}
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                  <div className="flex items-center h-8 mb-4">
+                    <h3 className="text-xl font-black text-black dark:text-white flex items-center gap-2">
                       <span className="text-xl">📚</span>
                       <span>Môn học của bạn</span>
                     </h3>
@@ -1628,10 +1656,12 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
                 {/* Right Column: Recent Activity */}
                 <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <span className="text-xl">⏳</span>
-                    <span>Hoạt động gần đây</span>
-                  </h3>
+                  <div className="flex items-center h-8 mb-4">
+                    <h3 className="text-xl font-black text-black dark:text-white flex items-center gap-2">
+                      <span className="text-xl">⏳</span>
+                      <span>Hoạt động gần đây</span>
+                    </h3>
+                  </div>
 
                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col gap-2">
                     {grades.length === 0 ? (
@@ -1686,30 +1716,6 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                       Xem lịch sử chi tiết ➔
                     </button>
                   </div>
-
-                  {/* Quick Pet Widget */}
-                  {studentPet && (
-                    <div 
-                      onClick={() => setIsPetModalOpen(true)}
-                      className="bg-tertiary-container/10 border border-tertiary/20 p-5 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-tertiary/40 hover:bg-tertiary-container/15 transition-all group"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-indigo-500/25 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-all">
-                        <img
-                          src={`/assets/pets/pet_lv${studentPet.current_level}.png`}
-                          alt="Pet"
-                          className="w-10 h-10 object-contain animate-float"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/assets/pets/pet_lv0.png'
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Thú cưng Cấp {studentPet.current_level}</h5>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">❤️ HP: {studentPet.current_hp}% | ⭐ EXP: {studentPet.current_exp}</p>
-                      </div>
-                      <span className="text-xl">🐹</span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

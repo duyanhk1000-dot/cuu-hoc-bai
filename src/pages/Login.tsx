@@ -67,7 +67,7 @@ export default function Login() {
             <GraduationCap className="w-9 h-9 text-slate-100" />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-200 to-indigo-400 bg-clip-text text-transparent">
-            Học tập Gia đình
+            Cừu Học Bài
           </h1>
           <p className="text-slate-400 text-sm mt-1">Cổng kết nối tri thức cha mẹ và con cái</p>
         </div>

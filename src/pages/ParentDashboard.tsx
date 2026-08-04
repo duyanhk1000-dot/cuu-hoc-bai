@@ -82,14 +82,16 @@ export default function ParentDashboard() {
   
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'light'
   })
 
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('light')
+      document.documentElement.classList.remove('dark')
     } else {
       document.documentElement.classList.remove('light')
+      document.documentElement.classList.add('dark')
     }
     localStorage.setItem('theme', theme)
   }, [theme])
