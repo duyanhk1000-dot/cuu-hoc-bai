@@ -11,6 +11,7 @@ import { AlertModal } from '../components/AlertModal'
 import { ChatPanel } from '../components/ChatPanel'
 import { loadScript, loadStyle } from '../utils/lazyScriptLoader'
 import { MindMapViewer } from '../components/MindMapViewer'
+import { HandwritingAnswerInput } from '../components/HandwritingAnswerInput'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -1466,12 +1467,11 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                 })}
                               </div>
                             ) : (
-                              <textarea
-                                placeholder="Gõ câu trả lời chi tiết và trình bày cách làm của bạn vào đây..."
-                                rows={4}
+                              <HandwritingAnswerInput
                                 value={answers[q.question_number] || ''}
-                                onChange={(e) => handleAnswerSelect(q.question_number, e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none focus:border-indigo-500 transition-all resize-none leading-relaxed"
+                                onChange={(val) => handleAnswerSelect(q.question_number, val)}
+                                questionNumber={q.question_number}
+                                placeholder="Gõ câu trả lời chi tiết và trình bày cách làm của bạn vào đây..."
                               />
                             )}
                           </div>
