@@ -250,7 +250,7 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
       if (part.startsWith('$$') && part.endsWith('$$')) {
         const formula = part.slice(2, -2).trim();
         try {
-          const html = katex.renderToString(formula, { displayMode: true, throwOnError: false });
+          const html = katex.renderToString(formula, { displayMode: true, throwOnError: false, strict: 'ignore', output: 'html' });
           const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true, mathMl: true, svg: true } });
           return <div key={key} className="my-4 overflow-x-auto select-all" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
         } catch (e) {
@@ -262,7 +262,7 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
       if (part.startsWith('$') && part.endsWith('$')) {
         const formula = part.slice(1, -1).trim();
         try {
-          const html = katex.renderToString(formula, { displayMode: false, throwOnError: false });
+          const html = katex.renderToString(formula, { displayMode: false, throwOnError: false, strict: 'ignore', output: 'html' });
           const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true, mathMl: true, svg: true } });
           return <span key={key} className="mx-0.5 select-all" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
         } catch (e) {
@@ -275,6 +275,17 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
   } catch (e) {
     return <span>{textStr}</span>;
   }
+};
+
+/**
+ * 8. Làm sạch chuỗi Mermaid: xử lý lỗi nhãn trích dẫn bị escape kép hoặc chứa ký hiệu đặc biệt.
+ */
+export const cleanMermaidString = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/\\"/g, "'") // Thay thế \" bằng dấu nháy đơn '
+    .replace(/&quot;/g, "'") // Thay thế thực thể HTML &quot; bằng dấu nháy đơn
+    .replace(/[\u201C\u201D]/g, "'"); // Thay thế dấu nháy kép thông minh
 };
 
 /**

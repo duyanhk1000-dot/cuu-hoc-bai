@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { LogOut, BookOpen, GraduationCap, Send, MessageSquare, CheckCircle, HelpCircle, Award, Sparkles, Loader2, ArrowLeft, RotateCw, AlertTriangle, Clock, X, Sun, Moon, FileText, Home, MessageCircle } from 'lucide-react'
 import { dataService, User, Syllabus, Lesson, Grade, Message, StudentPet, PetEvent } from '../dataService'
-import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer } from '../utils/mathNormalizer'
+import { normalizeText, parseMathAndText as customParseMathAndText, MathRenderer, cleanMermaidString } from '../utils/mathNormalizer'
 import { useAuth } from '../components/AuthProvider'
 import { supabase } from '../supabaseClient'
 import DOMPurify from 'dompurify'
@@ -877,8 +877,9 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
           <div 
             key={idx} 
             className="mermaid my-5 p-4 bg-slate-950/60 rounded-xl border border-slate-800/80 text-center overflow-x-auto text-slate-100"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(code) }}
-          />
+          >
+            {cleanMermaidString(code)}
+          </div>
         );
       }
 
@@ -1207,8 +1208,9 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                       <div 
                         key={`${activeLesson.id}-${activeLesson.lesson_number}`}
                         className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeLesson.mindmap) }}
-                      />
+                      >
+                        {cleanMermaidString(activeLesson.mindmap)}
+                      </div>
                     )
                   ) : (
                     <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/20">
