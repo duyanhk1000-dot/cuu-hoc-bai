@@ -47,6 +47,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
   // Text selection TTS states
   const [selectedText, setSelectedText] = useState('')
   const [selectionCoords, setSelectionCoords] = useState<{ x: number; y: number } | null>(null)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
 
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -139,15 +140,11 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
   }, [submittingTest])
 
   const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
-      setAlertMessage('Trình duyệt của bạn không hỗ trợ tính năng phát âm Web Speech API.')
-      return
+    // Dừng âm thanh đang phát trước đó nếu có
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+      activeAudioRef.current = null
     }
-
-    // Hủy phát âm đang chạy dở
-    window.speechSynthesis.cancel()
-
-    const utterance = new SpeechSynthesisUtterance(text)
 
     // Xác định mã ngôn ngữ dựa vào môn học hiện tại
     let langCode = 'en-US'
@@ -164,19 +161,18 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
       langCode = 'vi-VN'
     }
 
-    utterance.lang = langCode
-    utterance.rate = 0.6 // Cấu hình phát âm chậm rõ ràng
+    // Gọi API phát âm Microsoft Edge TTS chất lượng cao, tốc độ chậm -35%
+    const queryParams = new URLSearchParams({
+      text: text,
+      lang: langCode,
+      rate: '-35%'
+    })
 
-    const voices = window.speechSynthesis.getVoices()
-    let bestVoice = voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('google')) ||
-                    voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('natural')) ||
-                    voices.find(v => v.lang === langCode)
-    
-    if (bestVoice) {
-      utterance.voice = bestVoice
-    }
-
-    window.speechSynthesis.speak(utterance)
+    const audio = new Audio(`/api/speak?${queryParams.toString()}`)
+    activeAudioRef.current = audio
+    audio.play().catch(err => {
+      console.error("Lỗi phát âm Edge TTS:", err)
+    })
   }
 
   useEffect(() => {
