@@ -283,7 +283,7 @@ export const parseMathAndText = (textStr: string): React.ReactNode => {
 export const cleanMermaidString = (str: string): string => {
   if (!str) return '';
   return str
-    .replace(/\\"/g, "'") // Thay thế \" bằng dấu nháy đơn '
+    .replace(/\\+"/g, "'") // Thay thế \" hoặc \\" bằng dấu nháy đơn '
     .replace(/&quot;/g, "'") // Thay thế thực thể HTML &quot; bằng dấu nháy đơn
     .replace(/[\u201C\u201D]/g, "'"); // Thay thế dấu nháy kép thông minh
 };

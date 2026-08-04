@@ -8,6 +8,64 @@ interface MindMapViewerProps {
   mindmapData: string | object
 }
 
+// Hàm biên dịch công thức toán học LaTeX trong văn bản node sang HTML
+const compileMathInText = (text: string): string => {
+  const katex = (window as any).katex
+  if (!katex || !text) return text
+
+  // Cắt văn bản theo dấu $ (inline math) hoặc $$ (display math)
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$]+\$)/g)
+  let hasMath = false
+
+  const processed = parts.map((part) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      hasMath = true
+      const formula = part.slice(2, -2).trim()
+      try {
+        return katex.renderToString(formula, { displayMode: true, throwOnError: false, strict: 'ignore', output: 'html' })
+      } catch (e) {
+        return part
+      }
+    }
+    if (part.startsWith('$') && part.endsWith('$')) {
+      hasMath = true
+      const formula = part.slice(1, -1).trim()
+      try {
+        return katex.renderToString(formula, { displayMode: false, throwOnError: false, strict: 'ignore', output: 'html' })
+      } catch (e) {
+        return part
+      }
+    }
+    return part
+  }).join('')
+
+  return processed
+}
+
+// Đệ quy quét qua toàn bộ sơ đồ tư duy để dịch công thức toán sang HTML
+const processMindmapData = (node: any): any => {
+  if (!node) return node
+
+  const newNode = { ...node }
+  if (newNode.data) {
+    const originalText = newNode.data.text || ''
+    const compiledText = compileMathInText(originalText)
+    if (compiledText !== originalText) {
+      newNode.data = {
+        ...newNode.data,
+        text: compiledText,
+        richText: true
+      }
+    }
+  }
+
+  if (newNode.children && Array.isArray(newNode.children)) {
+    newNode.children = newNode.children.map(processMindmapData)
+  }
+
+  return newNode
+}
+
 export const MindMapViewer: React.FC<MindMapViewerProps> = ({ mindmapData }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const mindMapInstance = useRef<MindMap | null>(null)
@@ -37,9 +95,12 @@ export const MindMapViewer: React.FC<MindMapViewerProps> = ({ mindmapData }) => 
     try {
       const isDark = document.documentElement.classList.contains('dark')
       
+      // Biên dịch công thức toán học trước khi đưa vào renderer
+      const finalData = processMindmapData(parsedData)
+
       const mindMap = new MindMap({
         el: containerRef.current,
-        data: parsedData,
+        data: finalData,
         theme: isDark ? 'dark' : 'default',
         readonly: true, // Học sinh chỉ xem, không chỉnh sửa trực tiếp
         draggable: false, // Không kéo thả node tự do (giữ form chuẩn)
