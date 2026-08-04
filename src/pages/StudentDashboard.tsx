@@ -10,6 +10,7 @@ import { useTimer } from '../hooks/useTimer'
 import { AlertModal } from '../components/AlertModal'
 import { ChatPanel } from '../components/ChatPanel'
 import { loadScript, loadStyle } from '../utils/lazyScriptLoader'
+import { MindMapViewer } from '../components/MindMapViewer'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -1199,11 +1200,15 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                     </div>
                   </div>
                   {activeLesson?.mindmap ? (
-                    <div 
-                      key={`${activeLesson.id}-${activeLesson.lesson_number}`}
-                      className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeLesson.mindmap) }}
-                    />
+                    activeLesson.mindmap.trim().startsWith('{') ? (
+                      <MindMapViewer mindmapData={activeLesson.mindmap} />
+                    ) : (
+                      <div 
+                        key={`${activeLesson.id}-${activeLesson.lesson_number}`}
+                        className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeLesson.mindmap) }}
+                      />
+                    )
                   ) : (
                     <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/20">
                       <Sparkles className="w-10 h-10 text-indigo-500/50 mx-auto" />

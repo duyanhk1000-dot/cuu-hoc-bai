@@ -9,6 +9,7 @@ import { useChat } from '../hooks/useChat'
 import { AlertModal } from '../components/AlertModal'
 import { ChatPanel } from '../components/ChatPanel'
 import { loadScript, loadStyle } from '../utils/lazyScriptLoader'
+import { MindMapViewer } from '../components/MindMapViewer'
 
 const renderAvatar = (roleOrUsername: string, sizeClass = "w-8 h-8") => {
   const isParent = roleOrUsername === 'parent' || 
@@ -732,7 +733,7 @@ export default function ParentDashboard() {
           duration: data.duration_minutes || 45,
           questions: JSON.stringify(data.questions),
           flashcards: JSON.stringify(data.flashcards),
-          mindmap: data.mindmap || '',
+          mindmap: typeof data.mindmap === 'object' ? JSON.stringify(data.mindmap) : (data.mindmap || ''),
           is_published: false,
           parent_feedback: feedback || ''
         };
@@ -2014,11 +2015,15 @@ export default function ParentDashboard() {
                     </div>
                   </div>
                   {reviewingLesson.mindmap ? (
-                    <div 
-                      key={`${reviewingLesson.id}-${reviewingLesson.lesson_number}`}
-                      className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(reviewingLesson.mindmap) }}
-                    />
+                    reviewingLesson.mindmap.trim().startsWith('{') ? (
+                      <MindMapViewer mindmapData={reviewingLesson.mindmap} />
+                    ) : (
+                      <div 
+                        key={`${reviewingLesson.id}-${reviewingLesson.lesson_number}`}
+                        className="mermaid p-6 bg-slate-950/80 border border-slate-800 rounded-2xl text-center overflow-x-auto select-none text-slate-100"
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(reviewingLesson.mindmap) }}
+                      />
+                    )
                   ) : (
                     <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-slate-950/10">
                       <Sparkles className="w-8 h-8 text-indigo-500/50 mx-auto" />

@@ -79,7 +79,7 @@ YÊU CẦU NỘI DUNG soạn thảo cần tuân thủ cấu trúc schema sau:
 3. Thời gian làm bài tập (duration_minutes): Một số nguyên từ 30 đến 60 phút.
 4. Danh sách đúng 15 thẻ Flashcard (flashcards): Các khái niệm quan trọng nhất của bài học, mỗi thẻ gồm mặt trước (câu hỏi/khái niệm nhanh) và mặt sau (giải thích ngắn gọn).
 5. Đề bài tập kiểm tra đúng 15 câu hỏi (questions): Gồm 10 câu trắc nghiệm (multiple_choice) có 4 lựa chọn bắt đầu bằng 'A. ', 'B. ', 'C. ', 'D. ', và 5 câu tự luận (essay) có correct_answer là hướng dẫn giải chi tiết.
-6. Sơ đồ tư duy (mindmap): Viết mã nguồn vẽ sơ đồ tư duy bằng cú pháp Mermaid.js (dùng đồ thị graph TD hoặc cấu trúc mindmap tùy bài, không viết các thẻ nháy \`\`\`mermaid) để tóm tắt và trực quan hóa toàn bộ kiến thức của bài học này giúp học sinh dễ ghi nhớ. LƯU Ý QUAN TRỌNG: Tất cả các nhãn của nút (node labels) chứa tiếng Việt, dấu cách hoặc ký tự đặc biệt BẮT BUỘC phải bọc trong dấu ngoặc kép (ví dụ: A["Tên bài học"] --> B["Khái niệm chính"]). Không được viết tiếng Việt ngoài dấu ngoặc kép của nhãn nút để tránh lỗi vẽ sơ đồ.
+6. Sơ đồ tư duy (mindmap): Tạo một đối tượng cấu trúc JSON phân cấp dạng cây đại diện cho sơ đồ tư duy của bài học. Nó phải là một đối tượng chứa thuộc tính "data" (là object có key "text" chứa tiêu đề bài học) và một mảng "children" chứa các nhánh con. Mỗi nhánh con cũng có định dạng tương tự (chứa object "data" có key "text" và mảng "children" chứa các nhánh cháu chắt bên trong). Hãy thiết kế tối thiểu 3 nhánh lớn và mỗi nhánh lớn có ít nhất 2 nhánh con để tóm tắt đầy đủ kiến thức chính của bài học.
 
 LƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (LaTeX):
 - Do đầu ra được cấu hình là JSON, mọi ký tự gạch chéo ngược '\\' của lệnh LaTeX BẮT BUỘC phải được viết kép thành '\\\\' trong phản hồi (ví dụ: viết '\\\\times', '\\\\frac', '\\\\text', '\\\\rightarrow', '\\\\lbrace', '\\\\rbrace').
@@ -110,7 +110,67 @@ LƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (LaTeX):
         properties: {
           title: { type: 'string' },
           lecture_content: { type: 'string' },
-          mindmap: { type: 'string' },
+          mindmap: {
+            type: 'object',
+            properties: {
+              data: {
+                type: 'object',
+                properties: {
+                  text: { type: 'string' }
+                },
+                required: ['text']
+              },
+              children: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'object',
+                      properties: {
+                        text: { type: 'string' }
+                      },
+                      required: ['text']
+                    },
+                    children: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          data: {
+                            type: 'object',
+                            properties: {
+                              text: { type: 'string' }
+                            },
+                            required: ['text']
+                          },
+                          children: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                data: {
+                                  type: 'object',
+                                  properties: {
+                                    text: { type: 'string' }
+                                  },
+                                  required: ['text']
+                                }
+                              },
+                              required: ['data']
+                            }
+                          }
+                        },
+                        required: ['data']
+                      }
+                    }
+                  },
+                  required: ['data']
+                }
+              }
+            },
+            required: ['data']
+          },
           duration_minutes: { type: 'integer' },
           flashcards: {
             type: 'array',
