@@ -217,8 +217,8 @@ export const HandwritingAnswerInput: React.FC<HandwritingAnswerInputProps> = ({
             className="w-full px-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none focus:border-indigo-500 transition-all resize-none leading-relaxed font-medium"
           />
           {value && (
-            <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-lg text-slate-100 text-xs overflow-x-auto flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mr-2 flex-shrink-0">
+            <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-lg text-slate-100 text-base overflow-x-auto flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block mr-2 flex-shrink-0">
                 Xem trước:
               </span>
               <div className="overflow-x-auto flex-1">
@@ -299,7 +299,7 @@ export const HandwritingAnswerInput: React.FC<HandwritingAnswerInputProps> = ({
           </div>
 
           {/* Pretty display using KaTeX rendering */}
-          <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-sm overflow-x-auto min-h-[70px] flex items-center justify-center">
+          <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xl overflow-x-auto min-h-[70px] flex items-center justify-center">
             <MathRenderer content={tempResult || "(Không nhận diện được ký tự nào)"} />
           </div>
 

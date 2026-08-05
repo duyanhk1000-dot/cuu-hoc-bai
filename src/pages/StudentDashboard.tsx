@@ -1194,7 +1194,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab: Mindmap */}
               {workspaceTab === 'mindmap' && (
-                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl space-y-4 text-left">
+                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl mx-auto w-full space-y-4 text-left">
                   <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                     <div>
                       <h2 className="text-xl font-bold text-white">Sơ đồ tư duy bài học</h2>
@@ -1226,7 +1226,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab: PDF Textbook Document */}
               {workspaceTab === 'pdf' && (
-                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl space-y-4 text-left">
+                <div className="p-6 rounded-2xl glass-panel glow-indigo max-w-4xl mx-auto w-full space-y-4 text-left">
                   <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                     <div>
                       <h2 className="text-xl font-bold text-white">Sách giáo khoa & Tài liệu PDF</h2>
@@ -1359,7 +1359,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                           {/* Front Side */}
                           <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl selectable-tts">
                             <Sparkles className="w-6 h-6 text-indigo-400 mb-4 animate-pulse" />
-                            <h3 className="text-lg font-bold text-slate-100 leading-relaxed">
+                            <h3 className="text-3xl font-bold text-slate-100 leading-relaxed">
                               <MathRenderer content={flashcards[currentFlashcardIdx]?.front || ''} />
                             </h3>
                             <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-6">Nhấp để xem mặt sau</span>
@@ -1368,7 +1368,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                           {/* Back Side */}
                           <div className="absolute inset-0 w-full h-full rounded-2xl bg-indigo-950/80 border border-indigo-500/35 glow-indigo backface-hidden p-8 flex flex-col items-center justify-center text-center shadow-2xl rotate-y-180 selectable-tts">
                             <CheckCircle className="w-6 h-6 text-emerald-400 mb-4" />
-                            <p className="text-sm text-slate-200 leading-relaxed font-medium">
+                            <p className="text-xl text-slate-200 leading-relaxed font-medium">
                               <MathRenderer content={flashcards[currentFlashcardIdx]?.back || ''} />
                             </p>
                             <span className="text-[10px] text-indigo-400 uppercase tracking-widest mt-6">Nhấp để xem câu hỏi</span>
@@ -1421,7 +1421,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab 3: Take Test */}
               {workspaceTab === 'test' && (
-                <div className="max-w-3xl space-y-6">
+                <div className="max-w-3xl mx-auto w-full space-y-6">
                   {submittingTest ? (
                     <div className="p-12 text-center rounded-2xl glass-panel glow-indigo flex flex-col items-center justify-center gap-5">
                       <div className="relative flex items-center justify-center">
@@ -1446,7 +1446,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                         {questions.map((q, idx) => (
                           <div key={idx} className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
                             <span className="text-xs font-bold text-indigo-400 block">Câu {q.question_number}: {q.question_type === 'multiple_choice' ? 'Trắc nghiệm' : 'Tự luận'}</span>
-                            <p className="text-sm font-semibold text-slate-100"><MathRenderer content={q.prompt} /></p>
+                            <p className="text-lg font-bold text-slate-100"><MathRenderer content={q.prompt} /></p>
                             
                             {q.question_type === 'multiple_choice' ? (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1457,7 +1457,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                                     <button
                                       key={opt}
                                       onClick={() => handleAnswerSelect(q.question_number, letter)}
-                                      className={`w-full text-left px-4 py-3 rounded-xl border text-xs font-medium transition-all ${
+                                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-bold transition-all ${
                                         isSelected
                                           ? 'bg-indigo-600/20 border-indigo-500 text-slate-100 shadow-md shadow-indigo-500/5'
                                           : 'bg-slate-950/40 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -1499,7 +1499,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
 
               {/* Tab 4: Show AI test results */}
               {workspaceTab === 'result' && testResult && (
-                <div className="max-w-3xl space-y-6">
+                <div className="max-w-3xl mx-auto w-full space-y-6">
                   {/* Results summary box */}
                   <div className="p-6 rounded-2xl glass-panel glow-indigo flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="space-y-2 text-center md:text-left">
@@ -1519,7 +1519,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                   {/* Overall Feedback */}
                   <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nhận xét tổng quát của Giáo viên</span>
-                    <p className="text-base text-black dark:text-slate-100 font-extrabold leading-relaxed">
+                    <p className="text-xl text-black dark:text-slate-100 font-extrabold leading-relaxed">
                       <MathRenderer content={testResult.overall_feedback} />
                     </p>
                   </div>
@@ -1538,7 +1538,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                         }`}
                       >
                         <div className="flex justify-between items-start gap-4">
-                          <span className="text-xs font-bold text-slate-300">Câu số {q.question_number}</span>
+                          <span className="text-base font-bold text-slate-300">Câu số {q.question_number}</span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                             q.is_correct
                               ? 'bg-emerald-500/10 text-emerald-400'
@@ -1547,11 +1547,11 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                             {q.is_correct ? 'Chính xác' : 'Chưa đúng'} (+{q.score_awarded}đ)
                           </span>
                         </div>
-                        <div className="mt-3 space-y-2 text-xs">
+                        <div className="mt-3 space-y-2 text-base">
                           <p className="text-slate-400">
                             👉 **Bài làm của bạn:** <span className="text-slate-100 font-medium"><MathRenderer content={q.student_answer || "(Chưa trả lời)"} /></span>
                           </p>
-                          <div className="p-3 bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-black dark:text-slate-100 font-extrabold leading-relaxed">
+                          <div className="p-3 bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-base text-black dark:text-slate-100 font-extrabold leading-relaxed">
                             <strong className="text-black dark:text-white font-extrabold">Lời giải & Nhận xét của Giáo viên:</strong> <MathRenderer content={q.correct_explanation} />
                           </div>
                         </div>
