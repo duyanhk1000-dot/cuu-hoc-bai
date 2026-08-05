@@ -206,38 +206,25 @@ export const HandwritingAnswerInput: React.FC<HandwritingAnswerInputProps> = ({
         </div>
       </div>
 
-      {/* TYPING MODE (Original Textarea or confirmed state) */}
-      {(mode === 'TYPING' || mode === 'CONFIRMING') && (
+      {/* TYPING MODE (Original Textarea) */}
+      {mode === 'TYPING' && (
         <div className="space-y-2">
-          {value ? (
-            // Confirmed visual box with LaTeX rendered output
-            <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3 relative group">
-              <div className="text-xs text-slate-400 font-medium">Kết quả câu trả lời đã lưu:</div>
-              <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-lg text-slate-100 text-sm overflow-x-auto min-h-[50px] flex items-center">
+          <textarea
+            placeholder={placeholder}
+            rows={4}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none focus:border-indigo-500 transition-all resize-none leading-relaxed font-medium"
+          />
+          {value && (
+            <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-lg text-slate-100 text-xs overflow-x-auto flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mr-2 flex-shrink-0">
+                Xem trước:
+              </span>
+              <div className="overflow-x-auto flex-1">
                 <MathRenderer content={value} />
               </div>
-              <div className="flex justify-between items-center text-[10px] text-emerald-400 font-bold">
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Đã xác nhận câu trả lời
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMode('DRAWING')}
-                  className="px-3 py-1 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-indigo-400 rounded-lg font-extrabold transition-all active:scale-95"
-                >
-                  Sửa lại
-                </button>
-              </div>
             </div>
-          ) : (
-            <textarea
-              placeholder={placeholder}
-              rows={4}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none focus:border-indigo-500 transition-all resize-none leading-relaxed font-medium"
-            />
           )}
         </div>
       )}
