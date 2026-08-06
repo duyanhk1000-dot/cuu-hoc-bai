@@ -73,12 +73,29 @@ export default async function handler(req: any, res: any) {
     
     if (fileUrl) {
       try {
-        const fileResponse = await fetch(fileUrl)
-        if (!fileResponse.ok) {
-          throw new Error(`HTTP ${fileResponse.status} ${fileResponse.statusText}`)
+        if (fileUrl.trim().startsWith('[')) {
+          // Trường hợp tệp lớn được phân mảnh nhị phân (Multi-part PDF)
+          const urls = JSON.parse(fileUrl) as string[]
+          const buffers: Buffer[] = []
+          for (const url of urls) {
+            const fileResponse = await fetch(url)
+            if (!fileResponse.ok) {
+              throw new Error(`HTTP ${fileResponse.status} ${fileResponse.statusText} khi tải phần: ${url}`)
+            }
+            const arrayBuffer = await fileResponse.arrayBuffer()
+            buffers.push(Buffer.from(arrayBuffer))
+          }
+          const mergedBuffer = Buffer.concat(buffers)
+          base64Data = mergedBuffer.toString('base64')
+        } else {
+          // Trường hợp tệp đơn lẻ bình thường
+          const fileResponse = await fetch(fileUrl)
+          if (!fileResponse.ok) {
+            throw new Error(`HTTP ${fileResponse.status} ${fileResponse.statusText}`)
+          }
+          const arrayBuffer = await fileResponse.arrayBuffer()
+          base64Data = Buffer.from(arrayBuffer).toString('base64')
         }
-        const arrayBuffer = await fileResponse.arrayBuffer()
-        base64Data = Buffer.from(arrayBuffer).toString('base64')
       } catch (fetchErr: any) {
         return res.status(400).json({ 
           error: `Không thể tải file PDF từ Supabase Storage (${fetchErr.message || fetchErr}). Vui lòng kiểm tra cấu hình Storage Bucket 'textbooks' đã bật Public chưa.` 

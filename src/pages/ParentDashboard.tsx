@@ -504,23 +504,58 @@ export default function ParentDashboard() {
             const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
             
             const fileExt = file.name.split('.').pop()
-            const fileName = `${fileHash}.${fileExt}` // Dùng mã băm SHA-256 làm tên file để chống trùng lặp
+            const CHUNK_SIZE = 45 * 1024 * 1024 // Giới hạn 45MB cho mỗi phần
             
-            const { data, error: uploadError } = await supabase.storage
-              .from('textbooks')
-              .upload(fileName, file, {
-                contentType: 'application/pdf',
-                upsert: true
-              })
+            if (file.size > CHUNK_SIZE) {
+              // Trường hợp tệp lớn hơn 45MB: Tự động phân mảnh nhị phân (Blob.slice)
+              const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+              const urls: string[] = []
               
-            if (!uploadError) {
-              const { data: { publicUrl: pUrl } } = supabase.storage
-                .from('textbooks')
-                .getPublicUrl(fileName)
-              publicUrl = pUrl
-              setUploadedPdfUrl(pUrl)
+              for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE
+                const end = Math.min(start + CHUNK_SIZE, file.size)
+                const chunkBlob = file.slice(start, end, 'application/pdf')
+                const chunkFileName = `${fileHash}_part${i}.${fileExt}`
+                
+                const { data, error: uploadError } = await supabase.storage
+                  .from('textbooks')
+                  .upload(chunkFileName, chunkBlob, {
+                    contentType: 'application/pdf',
+                    upsert: true
+                  })
+                  
+                if (uploadError) {
+                  throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+                }
+                
+                const { data: { publicUrl: pUrl } } = supabase.storage
+                  .from('textbooks')
+                  .getPublicUrl(chunkFileName)
+                urls.push(pUrl)
+              }
+              
+              publicUrl = JSON.stringify(urls)
+              setUploadedPdfUrl(publicUrl)
             } else {
-              console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+              // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
+              const fileName = `${fileHash}.${fileExt}`
+              
+              const { data, error: uploadError } = await supabase.storage
+                .from('textbooks')
+                .upload(fileName, file, {
+                  contentType: 'application/pdf',
+                  upsert: true
+                })
+                
+              if (!uploadError) {
+                const { data: { publicUrl: pUrl } } = supabase.storage
+                  .from('textbooks')
+                  .getPublicUrl(fileName)
+                publicUrl = pUrl
+                setUploadedPdfUrl(pUrl)
+              } else {
+                console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+              }
             }
           } catch (storageErr) {
             console.warn("Không kết nối được Supabase Storage (CORS hoặc ad-blocker), chuyển sang chế độ truyền trực tiếp:", storageErr)
@@ -662,22 +697,56 @@ export default function ParentDashboard() {
         const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
         
         const fileExt = file.name.split('.').pop()
-        const fileName = `${fileHash}.${fileExt}` // Dùng mã băm SHA-256 làm tên file để chống trùng lặp
+        const CHUNK_SIZE = 45 * 1024 * 1024 // Giới hạn 45MB cho mỗi phần
         
-        const { data, error: uploadError } = await supabase.storage
-          .from('textbooks')
-          .upload(fileName, file, {
-            contentType: 'application/pdf',
-            upsert: true
-          })
+        if (file.size > CHUNK_SIZE) {
+          // Trường hợp tệp lớn hơn 45MB: Tự động phân mảnh nhị phân (Blob.slice)
+          const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+          const urls: string[] = []
           
-        if (!uploadError) {
-          const { data: { publicUrl: pUrl } } = supabase.storage
-            .from('textbooks')
-            .getPublicUrl(fileName)
-          publicUrl = pUrl
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE
+            const end = Math.min(start + CHUNK_SIZE, file.size)
+            const chunkBlob = file.slice(start, end, 'application/pdf')
+            const chunkFileName = `${fileHash}_part${i}.${fileExt}`
+            
+            const { data, error: uploadError } = await supabase.storage
+              .from('textbooks')
+              .upload(chunkFileName, chunkBlob, {
+                contentType: 'application/pdf',
+                upsert: true
+              })
+              
+            if (uploadError) {
+              throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+            }
+            
+            const { data: { publicUrl: pUrl } } = supabase.storage
+              .from('textbooks')
+              .getPublicUrl(chunkFileName)
+            urls.push(pUrl)
+          }
+          
+          publicUrl = JSON.stringify(urls)
         } else {
-          throw new Error(`Upload storage error: ${uploadError.message}`)
+          // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
+          const fileName = `${fileHash}.${fileExt}`
+          
+          const { data, error: uploadError } = await supabase.storage
+            .from('textbooks')
+            .upload(fileName, file, {
+              contentType: 'application/pdf',
+              upsert: true
+            })
+            
+          if (!uploadError) {
+            const { data: { publicUrl: pUrl } } = supabase.storage
+              .from('textbooks')
+              .getPublicUrl(fileName)
+            publicUrl = pUrl
+          } else {
+            throw new Error(`Upload storage error: ${uploadError.message}`)
+          }
         }
       } else {
         const reader = new FileReader()

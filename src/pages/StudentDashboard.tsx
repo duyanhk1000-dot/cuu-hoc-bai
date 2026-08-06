@@ -100,6 +100,53 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
   // KaTeX load state
   const [kaTeXLoaded, setKaTeXLoaded] = useState(false)
 
+  // Multi-part PDF states
+  const [mergedPdfUrl, setMergedPdfUrl] = useState<string>('')
+  const [loadingPdf, setLoadingPdf] = useState(false)
+
+  useEffect(() => {
+    if (!syllabus?.pdf_file_path || workspaceTab !== 'pdf') return;
+
+    let cleanup = () => {}
+    const filePath = syllabus.pdf_file_path
+    if (filePath.trim().startsWith('[')) {
+      let isMounted = true
+      const mergeAndLoad = async () => {
+        setLoadingPdf(true)
+        try {
+          const urls = JSON.parse(filePath) as string[]
+          const blobs: Blob[] = []
+          for (const url of urls) {
+            const res = await fetch(url)
+            if (!res.ok) throw new Error(`Lỗi tải file phần PDF: ${res.statusText}`)
+            const blob = await res.blob()
+            blobs.push(blob)
+          }
+          if (!isMounted) return
+          const mergedBlob = new Blob(blobs, { type: 'application/pdf' })
+          const objectUrl = URL.createObjectURL(mergedBlob)
+          setMergedPdfUrl(objectUrl)
+        } catch (err) {
+          console.error('Failed to merge multi-part PDF:', err)
+        } finally {
+          if (isMounted) setLoadingPdf(false)
+        }
+      }
+      mergeAndLoad()
+      cleanup = () => {
+        isMounted = false
+        setMergedPdfUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return ''
+        })
+      }
+    } else {
+      setMergedPdfUrl(filePath)
+    }
+
+    return cleanup
+  }, [syllabus?.pdf_file_path, workspaceTab])
+
   // Virtual Pet & Shop States
   const [studentPet, setStudentPet] = useState<StudentPet | null>(null)
   const [isPetModalOpen, setIsPetModalOpen] = useState(false)
@@ -1234,7 +1281,7 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                     </div>
                     {syllabus?.pdf_file_path && (
                       <a
-                        href={syllabus.pdf_file_path}
+                        href={mergedPdfUrl || syllabus.pdf_file_path}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 active:scale-95"
@@ -1246,13 +1293,25 @@ export default function StudentDashboard({ onOpenCreative }: { onOpenCreative?: 
                   </div>
 
                   {syllabus?.pdf_file_path ? (
-                    <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                      <iframe
-                        src={`${syllabus.pdf_file_path}#toolbar=0`}
-                        className="w-full h-[65vh] border-0"
-                        title="Tài liệu môn học"
-                      />
-                    </div>
+                    loadingPdf ? (
+                      <div className="p-12 text-center border border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-3 bg-slate-950/20">
+                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                        <span className="text-xs text-slate-400">Đang tải và ghép các phần tài liệu PDF lớn...</span>
+                      </div>
+                    ) : mergedPdfUrl ? (
+                      <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                        <iframe
+                          src={`${mergedPdfUrl}#toolbar=0`}
+                          className="w-full h-[65vh] border-0"
+                          title="Tài liệu môn học"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-12 text-center border border-dashed border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 bg-red-500/5 text-red-400">
+                        <AlertTriangle className="w-8 h-8" />
+                        <h4 className="font-bold text-sm">Lỗi tải tài liệu PDF lớn</h4>
+                      </div>
+                    )
                   ) : (
                     <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-3 bg-slate-950/20">
                       <FileText className="w-10 h-10 text-slate-600" />
