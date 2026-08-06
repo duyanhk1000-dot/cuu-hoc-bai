@@ -476,9 +476,9 @@ export default function ParentDashboard() {
       return
     }
 
-    // Giới hạn tối đa 100MB cho tệp PDF
-    if (file.size > 100 * 1024 * 1024) {
-      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 100MB.')
+    // Giới hạn tối đa 50MB cho tệp PDF
+    if (file.size > 50 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
       return
     }
 
@@ -504,75 +504,34 @@ export default function ParentDashboard() {
             const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
             
             const fileExt = file.name.split('.').pop()
-            const CHUNK_SIZE = 45 * 1024 * 1024 // Giới hạn 45MB cho mỗi phần
+            const fileName = `${fileHash}.${fileExt}`
             
-            if (file.size > CHUNK_SIZE) {
-              // Trường hợp tệp lớn hơn 45MB: Tự động phân mảnh nhị phân (Blob.slice)
-              const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-              const urls: string[] = []
-              
-              for (let i = 0; i < totalChunks; i++) {
-                const start = i * CHUNK_SIZE
-                const end = Math.min(start + CHUNK_SIZE, file.size)
-                const chunkBlob = file.slice(start, end, 'application/pdf')
-                const chunkFileName = `${fileHash}_part${i}.${fileExt}`
+            try {
+              const { data, error: uploadError } = await supabase.storage
+                .from('textbooks')
+                .upload(fileName, file, {
+                  contentType: 'application/pdf',
+                  upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS
+                })
                 
-                try {
-                  const { data, error: uploadError } = await supabase.storage
-                    .from('textbooks')
-                    .upload(chunkFileName, chunkBlob, {
-                      contentType: 'application/pdf',
-                      upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS (Postgres yêu cầu UPDATE kể cả khi không trùng nếu bật upsert)
-                    })
-                    
-                  if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
-                    throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
-                  }
-                } catch (err: any) {
-                  if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
-                    throw err
-                  }
-                }
-                
+              if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+                console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+              } else {
                 const { data: { publicUrl: pUrl } } = supabase.storage
                   .from('textbooks')
-                  .getPublicUrl(chunkFileName)
-                urls.push(pUrl)
+                  .getPublicUrl(fileName)
+                publicUrl = pUrl
+                setUploadedPdfUrl(pUrl)
               }
-              
-              publicUrl = JSON.stringify(urls)
-              setUploadedPdfUrl(publicUrl)
-            } else {
-              // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
-              const fileName = `${fileHash}.${fileExt}`
-              
-              try {
-                const { data, error: uploadError } = await supabase.storage
+            } catch (err: any) {
+              if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+                console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", err.message)
+              } else {
+                const { data: { publicUrl: pUrl } } = supabase.storage
                   .from('textbooks')
-                  .upload(fileName, file, {
-                    contentType: 'application/pdf',
-                    upsert: false
-                  })
-                  
-                if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
-                  console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
-                } else {
-                  const { data: { publicUrl: pUrl } } = supabase.storage
-                    .from('textbooks')
-                    .getPublicUrl(fileName)
-                  publicUrl = pUrl
-                  setUploadedPdfUrl(pUrl)
-                }
-              } catch (err: any) {
-                if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
-                  console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", err.message)
-                } else {
-                  const { data: { publicUrl: pUrl } } = supabase.storage
-                    .from('textbooks')
-                    .getPublicUrl(fileName)
-                  publicUrl = pUrl
-                  setUploadedPdfUrl(pUrl)
-                }
+                  .getPublicUrl(fileName)
+                publicUrl = pUrl
+                setUploadedPdfUrl(pUrl)
               }
             }
           } catch (storageErr) {
@@ -698,8 +657,8 @@ export default function ParentDashboard() {
       alert('Chỉ chấp nhận tệp định dạng PDF!')
       return
     }
-    if (file.size > 100 * 1024 * 1024) {
-      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 100MB.')
+    if (file.size > 50 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
       return
     }
 
@@ -715,72 +674,32 @@ export default function ParentDashboard() {
         const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
         
         const fileExt = file.name.split('.').pop()
-        const CHUNK_SIZE = 45 * 1024 * 1024 // Giới hạn 45MB cho mỗi phần
+        const fileName = `${fileHash}.${fileExt}`
         
-        if (file.size > CHUNK_SIZE) {
-          // Trường hợp tệp lớn hơn 45MB: Tự động phân mảnh nhị phân (Blob.slice)
-          const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-          const urls: string[] = []
-          
-          for (let i = 0; i < totalChunks; i++) {
-            const start = i * CHUNK_SIZE
-            const end = Math.min(start + CHUNK_SIZE, file.size)
-            const chunkBlob = file.slice(start, end, 'application/pdf')
-            const chunkFileName = `${fileHash}_part${i}.${fileExt}`
+        try {
+          const { data, error: uploadError } = await supabase.storage
+            .from('textbooks')
+            .upload(fileName, file, {
+              contentType: 'application/pdf',
+              upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS
+            })
             
-            try {
-              const { data, error: uploadError } = await supabase.storage
-                .from('textbooks')
-                .upload(chunkFileName, chunkBlob, {
-                  contentType: 'application/pdf',
-                  upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS
-                })
-                
-              if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
-                throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
-              }
-            } catch (err: any) {
-              if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
-                throw err
-              }
-            }
-            
+          if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+            throw new Error(`Upload storage error: ${uploadError.message}`)
+          } else {
             const { data: { publicUrl: pUrl } } = supabase.storage
               .from('textbooks')
-              .getPublicUrl(chunkFileName)
-            urls.push(pUrl)
+              .getPublicUrl(fileName)
+            publicUrl = pUrl
           }
-          
-          publicUrl = JSON.stringify(urls)
-        } else {
-          // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
-          const fileName = `${fileHash}.${fileExt}`
-          
-          try {
-            const { data, error: uploadError } = await supabase.storage
+        } catch (err: any) {
+          if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+            throw err
+          } else {
+            const { data: { publicUrl: pUrl } } = supabase.storage
               .from('textbooks')
-              .upload(fileName, file, {
-                contentType: 'application/pdf',
-                upsert: false
-              })
-              
-            if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
-              throw new Error(`Upload storage error: ${uploadError.message}`)
-            } else {
-              const { data: { publicUrl: pUrl } } = supabase.storage
-                .from('textbooks')
-                .getPublicUrl(fileName)
-              publicUrl = pUrl
-            }
-          } catch (err: any) {
-            if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
-              throw err
-            } else {
-              const { data: { publicUrl: pUrl } } = supabase.storage
-                .from('textbooks')
-                .getPublicUrl(fileName)
-              publicUrl = pUrl
-            }
+              .getPublicUrl(fileName)
+            publicUrl = pUrl
           }
         }
       } else {
