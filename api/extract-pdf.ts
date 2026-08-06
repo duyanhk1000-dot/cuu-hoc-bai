@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { fileUrl, fileData } = req.body || {}
+  const { fileUrl, fileData, first = 5 } = req.body || {}
   if (!fileUrl && !fileData) {
     return res.status(400).json({ error: 'Empty file URL or file data' })
   }
@@ -114,7 +114,8 @@ export default async function handler(req: any, res: any) {
     try {
       const pdfBuffer = Buffer.from(base64Data, 'base64')
       const parser = new pdf.PDFParse({ data: pdfBuffer })
-      const textResult = await parser.getText()
+      // Sử dụng tham số first (mặc định là 5 trang) để chỉ trích xuất phần mục lục/mở đầu sách giáo khoa lớn
+      const textResult = await parser.getText(first ? { first } : {})
       extractedText = textResult.text || ''
       await parser.destroy()
 
@@ -126,6 +127,13 @@ export default async function handler(req: any, res: any) {
       }
     } catch (parseErr: any) {
       console.warn('[Document Ingestion]: Lỗi trích xuất văn bản cục bộ, tự động chuyển sang chế độ Vision/OCR:', parseErr.message)
+    }
+
+    // Chốt chặn an toàn: Nếu PDF là dạng ảnh quét (scanned) và dung lượng lớn (>15MB), từ chối gửi lên Gemini vì vượt giới hạn payload
+    if (!isTextBased && Buffer.from(base64Data, 'base64').length > 15 * 1024 * 1024) {
+      return res.status(400).json({
+        error: 'Tài liệu PDF lớn (>15MB) và không chứa lớp văn bản (sách quét ảnh/scan). Vui lòng sử dụng sách có định dạng văn bản (Text-based PDF) hoặc chia nhỏ tài liệu dưới 15MB để hệ thống có thể chạy nhận dạng chữ bằng AI (OCR).'
+      })
     }
 
     // 1. Phân tách System Instructions
