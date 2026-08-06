@@ -46,41 +46,7 @@ interface CreativeAppProps {
   onClose: () => void
 }
 
-// Inner component to get Tldraw Editor Instance
-function CanvasToolbar({ 
-  onSave, 
-  onExhibit, 
-  isSaving, 
-  isExhibiting 
-}: { 
-  onSave: (editor: any) => void
-  onExhibit: (editor: any) => void
-  isSaving: boolean
-  isExhibiting: boolean
-}) {
-  const editor = useEditor()
-  return (
-    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/90 border border-slate-800 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3 z-[10] backdrop-blur-md">
-      <button
-        onClick={() => onSave(editor)}
-        disabled={isSaving}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all disabled:opacity-50"
-      >
-        <Save className="w-3.5 h-3.5 text-indigo-400" />
-        <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
-      </button>
-      <div className="w-[1px] h-4 bg-slate-800" />
-      <button
-        onClick={() => onExhibit(editor)}
-        disabled={isExhibiting}
-        className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50"
-      >
-        <Award className="w-3.5 h-3.5 animate-bounce" />
-        <span>{isExhibiting ? 'Đang treo...' : '🚪 Treo lên triển lãm'}</span>
-      </button>
-    </div>
-  )
-}
+
 
 export default function CreativeApp({ username, onClose }: CreativeAppProps) {
   const [creativeTab, setCreativeTab] = useState<'canvas' | 'gallery' | 'my_drawings'>('canvas')
@@ -177,6 +143,7 @@ export default function CreativeApp({ username, onClose }: CreativeAppProps) {
         engineRef.current = null
       }
     }
+    return () => {} // Return a fallback cleanup to satisfy TS7030
   }, [creativeTab])
 
   // Load My Drawings & Gallery

@@ -323,7 +323,7 @@ export class RenderAdapter {
       } else if (customType === 'text') {
         cdfObj.text = (obj as any).text || '';
         cdfObj.color = obj.fill as string;
-        cdfObj.strokeWidth = obj.fontSize; // dùng strokeWidth lưu trữ fontSize
+        cdfObj.strokeWidth = (obj as any).fontSize; // dùng strokeWidth lưu trữ fontSize
       }
 
       cdfObjects.push(cdfObj);
