@@ -1,5 +1,11 @@
 import { GoogleGenAI } from '@google/genai'
 import { getDecryptedApiKeys, reportFailedKey } from './utils/apiKeyManager.js'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+;(global as any).DOMMatrix = class DOMMatrix {}
+const pdf = require('pdf-parse')
+
 
 async function generateWithRetry(ai: any, model: string, options: any, maxRetries = 3, delayMs = 1500) {
   let lastErr: any = null
@@ -84,6 +90,27 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Không tìm thấy dữ liệu tệp PDF để xử lý' })
     }
 
+    // Tiền xử lý PDF cục bộ để phân loại và trích xuất text layer nếu có
+    let extractedText = ''
+    let isTextBased = false
+
+    try {
+      const pdfBuffer = Buffer.from(base64Data, 'base64')
+      const parser = new pdf.PDFParse({ data: pdfBuffer })
+      const textResult = await parser.getText()
+      extractedText = textResult.text || ''
+      await parser.destroy()
+
+      if (extractedText.trim().length > 100) {
+        isTextBased = true
+        console.log(`[Document Ingestion]: Xác nhận PDF là TEXT-BASED. Trích xuất thành công ${extractedText.trim().length} ký tự.`)
+      } else {
+        console.log('[Document Ingestion]: PDF không chứa text layer hoặc quá ngắn. Đánh dấu là SCANNED/IMAGE-BASED.')
+      }
+    } catch (parseErr: any) {
+      console.warn('[Document Ingestion]: Lỗi trích xuất văn bản cục bộ, tự động chuyển sang chế độ Vision/OCR:', parseErr.message)
+    }
+
     // 1. Phân tách System Instructions
     const systemInstruction = `Bạn là một trợ lý AI chuyên nghiệp chuyên trích xuất tài liệu học tập. Nhiệm vụ của bạn là đọc kỹ tài liệu PDF sách giáo khoa hoặc chương trình học được cung cấp, chuyển đổi và tóm tắt toàn bộ kiến thức cốt lõi sang ngôn ngữ Markdown (.md) sạch sẽ.
 
@@ -100,8 +127,16 @@ Yêu cầu đầu ra:
       const key = keys[i]
       try {
         const ai = new GoogleGenAI({ apiKey: key })
-        const response = await generateWithRetry(ai, 'gemini-2.5-flash', {
-          contents: [
+        
+        let contents: any[] = []
+        if (isTextBased) {
+          // Trường hợp Text-based: Gửi văn bản text thô tinh gọn cho Gemini, tiết kiệm chi phí và tăng tốc phản hồi
+          contents = [
+            `Dưới đây là nội dung văn bản trích xuất trực tiếp từ tài liệu PDF:\n\n"""\n${extractedText}\n"""\n\nHãy chuyển đổi và tóm tắt toàn bộ kiến thức sách giáo khoa/chương trình học trên sang định dạng Markdown.`
+          ]
+        } else {
+          // Trường hợp Scanned/Image-based: Gửi tệp nhị phân thô để Gemini dùng năng lực Multimodal Vision/OCR đọc nội dung
+          contents = [
             {
               inlineData: {
                 mimeType: 'application/pdf',
@@ -109,7 +144,11 @@ Yêu cầu đầu ra:
               }
             },
             'Hãy trích xuất và chuyển đổi toàn bộ kiến thức sách giáo khoa/chương trình học trong tài liệu PDF này sang định dạng Markdown.'
-          ],
+          ]
+        }
+
+        const response = await generateWithRetry(ai, 'gemini-2.5-flash', {
+          contents,
           config: {
             systemInstruction
           }
