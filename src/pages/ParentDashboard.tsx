@@ -517,15 +517,21 @@ export default function ParentDashboard() {
                 const chunkBlob = file.slice(start, end, 'application/pdf')
                 const chunkFileName = `${fileHash}_part${i}.${fileExt}`
                 
-                const { data, error: uploadError } = await supabase.storage
-                  .from('textbooks')
-                  .upload(chunkFileName, chunkBlob, {
-                    contentType: 'application/pdf',
-                    upsert: true
-                  })
-                  
-                if (uploadError) {
-                  throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+                try {
+                  const { data, error: uploadError } = await supabase.storage
+                    .from('textbooks')
+                    .upload(chunkFileName, chunkBlob, {
+                      contentType: 'application/pdf',
+                      upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS (Postgres yêu cầu UPDATE kể cả khi không trùng nếu bật upsert)
+                    })
+                    
+                  if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+                    throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+                  }
+                } catch (err: any) {
+                  if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+                    throw err
+                  }
                 }
                 
                 const { data: { publicUrl: pUrl } } = supabase.storage
@@ -540,21 +546,33 @@ export default function ParentDashboard() {
               // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
               const fileName = `${fileHash}.${fileExt}`
               
-              const { data, error: uploadError } = await supabase.storage
-                .from('textbooks')
-                .upload(fileName, file, {
-                  contentType: 'application/pdf',
-                  upsert: true
-                })
-                
-              if (!uploadError) {
-                const { data: { publicUrl: pUrl } } = supabase.storage
+              try {
+                const { data, error: uploadError } = await supabase.storage
                   .from('textbooks')
-                  .getPublicUrl(fileName)
-                publicUrl = pUrl
-                setUploadedPdfUrl(pUrl)
-              } else {
-                console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+                  .upload(fileName, file, {
+                    contentType: 'application/pdf',
+                    upsert: false
+                  })
+                  
+                if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+                  console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", uploadError.message)
+                } else {
+                  const { data: { publicUrl: pUrl } } = supabase.storage
+                    .from('textbooks')
+                    .getPublicUrl(fileName)
+                  publicUrl = pUrl
+                  setUploadedPdfUrl(pUrl)
+                }
+              } catch (err: any) {
+                if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+                  console.warn("Lưu file lên Supabase Storage thất bại, chuyển sang chế độ truyền trực tiếp:", err.message)
+                } else {
+                  const { data: { publicUrl: pUrl } } = supabase.storage
+                    .from('textbooks')
+                    .getPublicUrl(fileName)
+                  publicUrl = pUrl
+                  setUploadedPdfUrl(pUrl)
+                }
               }
             }
           } catch (storageErr) {
@@ -710,15 +728,21 @@ export default function ParentDashboard() {
             const chunkBlob = file.slice(start, end, 'application/pdf')
             const chunkFileName = `${fileHash}_part${i}.${fileExt}`
             
-            const { data, error: uploadError } = await supabase.storage
-              .from('textbooks')
-              .upload(chunkFileName, chunkBlob, {
-                contentType: 'application/pdf',
-                upsert: true
-              })
-              
-            if (uploadError) {
-              throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+            try {
+              const { data, error: uploadError } = await supabase.storage
+                .from('textbooks')
+                .upload(chunkFileName, chunkBlob, {
+                  contentType: 'application/pdf',
+                  upsert: false // Dùng false để không yêu cầu quyền UPDATE từ RLS
+                })
+                
+              if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+                throw new Error(`Lỗi tải lên phần ${i+1}/${totalChunks}: ${uploadError.message}`)
+              }
+            } catch (err: any) {
+              if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+                throw err
+              }
             }
             
             const { data: { publicUrl: pUrl } } = supabase.storage
@@ -732,20 +756,31 @@ export default function ParentDashboard() {
           // Trường hợp tệp nhỏ hơn 45MB: Tải lên bình thường 1 file duy nhất
           const fileName = `${fileHash}.${fileExt}`
           
-          const { data, error: uploadError } = await supabase.storage
-            .from('textbooks')
-            .upload(fileName, file, {
-              contentType: 'application/pdf',
-              upsert: true
-            })
-            
-          if (!uploadError) {
-            const { data: { publicUrl: pUrl } } = supabase.storage
+          try {
+            const { data, error: uploadError } = await supabase.storage
               .from('textbooks')
-              .getPublicUrl(fileName)
-            publicUrl = pUrl
-          } else {
-            throw new Error(`Upload storage error: ${uploadError.message}`)
+              .upload(fileName, file, {
+                contentType: 'application/pdf',
+                upsert: false
+              })
+              
+            if (uploadError && uploadError.message !== 'The resource already exists' && !uploadError.message.includes('Duplicate')) {
+              throw new Error(`Upload storage error: ${uploadError.message}`)
+            } else {
+              const { data: { publicUrl: pUrl } } = supabase.storage
+                .from('textbooks')
+                .getPublicUrl(fileName)
+              publicUrl = pUrl
+            }
+          } catch (err: any) {
+            if (err.message !== 'The resource already exists' && !err.message.includes('Duplicate')) {
+              throw err
+            } else {
+              const { data: { publicUrl: pUrl } } = supabase.storage
+                .from('textbooks')
+                .getPublicUrl(fileName)
+              publicUrl = pUrl
+            }
           }
         }
       } else {
