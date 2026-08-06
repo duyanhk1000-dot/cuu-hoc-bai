@@ -476,9 +476,9 @@ export default function ParentDashboard() {
       return
     }
 
-    // Giới hạn tối đa 50MB cho tệp PDF
-    if (file.size > 50 * 1024 * 1024) {
-      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
+    // Giới hạn tối đa 100MB cho tệp PDF
+    if (file.size > 100 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 100MB.')
       return
     }
 
@@ -497,8 +497,14 @@ export default function ParentDashboard() {
         // 1. Thử tải file lên Supabase Storage để làm link tải tài liệu lâu dài cho học sinh
         if (isSupabaseConfigured) {
           try {
+            // Tính toán SHA-256 hash của tệp để chống tải lên trùng lặp
+            const fileBuffer = await file.arrayBuffer()
+            const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer)
+            const hashArray = Array.from(new Uint8Array(hashBuffer))
+            const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+            
             const fileExt = file.name.split('.').pop()
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+            const fileName = `${fileHash}.${fileExt}` // Dùng mã băm SHA-256 làm tên file để chống trùng lặp
             
             const { data, error: uploadError } = await supabase.storage
               .from('textbooks')
@@ -639,8 +645,8 @@ export default function ParentDashboard() {
       alert('Chỉ chấp nhận tệp định dạng PDF!')
       return
     }
-    if (file.size > 50 * 1024 * 1024) {
-      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 50MB.')
+    if (file.size > 100 * 1024 * 1024) {
+      alert('⚠️ Tệp quá lớn! Dung lượng file tải lên tối đa là 100MB.')
       return
     }
 
@@ -649,8 +655,14 @@ export default function ParentDashboard() {
       let publicUrl = ''
       
       if (isSupabaseConfigured) {
+        // Tính toán SHA-256 hash của tệp để chống tải lên trùng lặp
+        const fileBuffer = await file.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+        
         const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+        const fileName = `${fileHash}.${fileExt}` // Dùng mã băm SHA-256 làm tên file để chống trùng lặp
         
         const { data, error: uploadError } = await supabase.storage
           .from('textbooks')
